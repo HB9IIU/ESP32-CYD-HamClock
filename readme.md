@@ -54,7 +54,7 @@ Clean layout, large fonts, and dual clocks make it ideal for quick glances while
 
 ## ⚙️ Configuration
 
-All settings are in `include/config.h`.
+All settings are in `config.h`.
 
 Here's a template:
 
