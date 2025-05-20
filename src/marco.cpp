@@ -108,7 +108,7 @@ void setup() {
   Serial.println("TFT Display initialized!");
 
   // Display PNG from SPIFFS
-  displayPNGfromSPIFFS("logo.png", 3000);
+  displayPNGfromSPIFFS("logo.png", 0);
 
   // Connect to Wi-Fi
   connectWiFi();
