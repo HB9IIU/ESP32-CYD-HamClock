@@ -28,7 +28,7 @@
 #define BANNER_SPEED 20 // low number: high speed
 #define LOCAL_TIME_FRAME_LABEL "  QTH Time  "
 #define UTC_TIME_FRAME_LABEL "  UTC Time  "
-#define START_UP_LOGO "logo2.png"  //select logo1.png /logo2.png or logo3.png
+#define START_UP_LOGO "logo3.png"  //select logo1.png /logo2.png or logo3.png
 #define ITALIC_CLOCK_FONTS true // true or false
 
 #endif // CONFIG_H
