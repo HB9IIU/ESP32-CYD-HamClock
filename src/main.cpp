@@ -75,7 +75,7 @@ TFT_eSprite stext2 = TFT_eSprite(&tft); // Sprite object for "Hello World" text
 
 // Scrolling Text
 int textX;                                                      // Variable for text position (to start at the rightmost side)
-String scrollText = "Sorry, No Weather Info At This Moment!!!"; // Text to scroll
+String scrollText = "Sorry, No Weather Info At This Moment!!! Have you enterred your API key?"; // Text to scroll
 // Timing variables
 unsigned long previousMillisForScroller = 0; // Store last time the action was performed
 
@@ -187,9 +187,9 @@ void loop()
     displayTime(8, 5, localTime, previousLocalTime, 0, LOCAL_TIME_COLOUR); // Display local time at y = 5
     displayTime(10, 107, utcTime, previousUTCtime, 0, UTC_TIME_COLOUR);    // Display UTC time at y = 106
 
-    // Fetch Weather Data once every hour
-    if (currentMillis - previousMillis >= 3600000)
-    {                                   // 3600000 milliseconds = 1 hour
+    // Fetch Weather Data once every 5 minutes
+    if (currentMillis - previousMillis >= 1000*60*5)
+    {                                   
         previousMillis = currentMillis; // Save the current time
         fetchWeatherData();
     }
@@ -218,7 +218,7 @@ void loop()
         // Push the sprite onto the TFT at the specified coordinates
         stext2.pushSprite(5, 205); // Push the sprite to the screen at position (5, 220)
     }
-    // delay(1000); // Update display every second
+  
 }
 
 // Function to connect to Wi-Fi
@@ -263,7 +263,7 @@ void fetchWeatherData()
         Serial.println(payload);
         Serial.println("Weather data received.");
 
-        // Parse the JSON response
+ 
         // Parse the JSON response
         DynamicJsonDocument doc(1024);
         deserializeJson(doc, payload);
