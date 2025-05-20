@@ -1,60 +1,72 @@
 # 🌦️ ESP32 Weather & UTC Clock Display
 
 **Author:** HB9IIU  
-**Built for:** Marco T77PM
+**Built for:** Marco T77PM  
+**Target Device:** ESP32 CYD (Cheap Yellow Display)
 
-> ⚠️ Designed especially for **radio amateurs** who rely on both **Local and UTC time** — whether for DX contacts, satellite passes, or digital mode logging.
-
----
-
-## 📟 What It Is
-
-This project turns an **ESP32 CYD (Cheap Yellow Display)** into a clean, full-screen **weather + time TFT display** — ideal for your shack or portable setup.
-
-### ✨ Key Features
-
-- ⏰ **Dual Clock Display**:
-  - Top: **Local time** (QTH)
-  - Bottom: **UTC time**
-- 🌤️ **Live weather info** via OpenWeather API (updated every 5 min)
-- 🖼️ **Startup PNG logo** (user-selectable)
-- 📡 **NTP time sync** over Wi-Fi for accurate clocking
-- 🔋 Low-resource design, crisp fonts, and graphical layout
+> ⚠️ **Perfect for radio amateurs** who rely on both **Local and UTC time** — for DXing, satellite tracking, or digital mode operation like FT8, JS8Call, or WSPR.
 
 ---
 
-## 📸 Example Output
+## 📟 Overview
 
-> _(COMING SOON)_
+This project turns your **ESP32 CYD board** into a full-screen **TFT time and weather station**, designed to sit proudly in your ham shack.
+
+It displays:
+
+- ⏰ Local & UTC time in large, easy-to-read fonts
+- 🌤️ Real-time weather data (temperature, humidity, sunrise/sunset)
+- 🖼️ A splash screen logo (loaded from SPIFFS)
+- 🔄 Auto-syncs time using NTP
+- 🧭 Your QTH location via coordinates for precise weather info
+
+Clean layout, large fonts, and dual clocks make it ideal for quick glances while operating.
 
 ---
 
-## 🔧 Requirements
+## ✨ Features
+
+| Feature                  | Description                                                                 |
+|--------------------------|-----------------------------------------------------------------------------|
+| 🕒 Dual Clocks            | Local time (top) and UTC (bottom) in 7-segment style fonts                  |
+| 🌐 NTP Time Sync         | Always accurate via `pool.ntp.org`                                          |
+| ☀️ Weather Data           | From OpenWeather API, updated every 5 minutes                              |
+| 📄 PNG Splash Screen      | Loads `logo1.png`, `logo2.png`, or `logo3.png` from SPIFFS on boot          |
+| 🖌️ Customizable Appearance | Colors, font styles, scroll speed, and labels via `config.h`                |
+| 🔁 Auto-Reconnect Wi-Fi   | Retries Wi-Fi and reboots after repeated failures                           |
+
+---
+
+## 🛠️ Requirements
 
 | Component             | Description                                      |
 |----------------------|--------------------------------------------------|
-| ESP32 CYD Board      | "Cheap Yellow Display" with ILI9341 TFT          |
-| Internet             | Wi-Fi connection for NTP & weather API           |
-| OpenWeather API Key  | Free at [openweathermap.org](https://openweathermap.org/api) |
-| PlatformIO (preferred) | Or Arduino IDE with filesystem uploader plugin |
+| ESP32 CYD Board      | "Cheap Yellow Display" with ILI9341 320x240 TFT  |
+| Wi-Fi                | For NTP and OpenWeather API                      |
+| OpenWeather API Key  | [Get yours here](https://openweathermap.org/api) |
+| PlatformIO           | (Preferred) or Arduino IDE with SPIFFS uploader  |
+
+> ⚠️ **Display color issue?** If you see **washed-out or pale colors**, edit your `platformio.ini`:  
+> Replace: `-D TFT_INVERSION_ON`  
+> With: `-D TFT_INVERSION_OFF`
 
 ---
 
 ## ⚙️ Configuration
 
-All settings are in `config.h`.  
-A working example is included — but you should replace Wi-Fi and API key for your setup.
+All settings are in `include/config.h`.
 
-### 📝 Example `config.h`
+Here's a template:
 
 ```cpp
-#define WIFI_SSID      "NO WIFI FOR YOU!!!"
-#define WIFI_PASSWORD  "balblabla"
+#define WIFI_SSID      "YourNetwork"
+#define WIFI_PASSWORD  "YourPassword"
 
 #define WEATHER_API_KEY "your_api_key_here"
+
 #define LATITUDE        46.4667118
 #define LONGITUDE       6.8590456
-#define TIME_OFFSET     2 // Timezone offset from UTC (e.g. 2 = CEST)
+#define TIME_OFFSET     2 // e.g. 2 = CEST
 
 #define LOCAL_TIME_COLOUR TFT_GREEN
 #define UTC_TIME_COLOUR   TFT_GOLD
@@ -69,5 +81,4 @@ A working example is included — but you should replace Wi-Fi and API key for y
 #define UTC_TIME_FRAME_LABEL   "  UTC Time  "
 
 #define START_UP_LOGO "logo1.png" // logo1.png / logo2.png / logo3.png
-#define ITALIC_CLOCK_FONTS false  // Set true for italic font
-
+#define ITALIC_CLOCK_FONTS false  // Use italic 7-segment fonts or not
