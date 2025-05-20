@@ -48,20 +48,23 @@
 #include <HB9IIOrbitronMed10pt.h>
 #include <PNGdec.h>
 #include <SPIFFS.h>
+#include "config.h"
 
-// Configuration Constants
-const char *SSID = "NO WIFI FOR YOU!!!";
-const char *WiFiPassword = "Nestle2010Nestle";
-const int retriesBeforeReboot = 5;                                           // Retry count before rebooting on failure
+
+// Global variables for configuration
+String SSID = WIFI_SSID;  // Wi-Fi credentials
+String WiFiPassword = WIFI_PASSWORD;
+float latitude = LATITUDE; // Latitude
+float longitude = LONGITUDE; // Longitude
+String apiKey = WEATHER_API_KEY; // API Key
+
+int tOffset = TIME_OFFSET;
+
+
 const String weatherAPI = "https://api.openweathermap.org/data/2.5/weather"; // OpenWeather API endpoint
-const String apiKey = "4444fcd8624a929dedc1d56235723ff3";                    // Your OpenWeather API key
 
-// Location for Weather Data
-const float latitude = 43.9424;  // Replace with your latitude
-const float longitude = 12.4578; // Replace with your longitude
 
-// Time Offset (in hours)
-const int tOffset = 2; // Replace with your desired time offset (e.g., +2 for Central European Time)
+int retriesBeforeReboot=5;
 
 // Global variables for previous time tracking
 String previousLocalTime = "";
