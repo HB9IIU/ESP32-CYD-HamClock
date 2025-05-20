@@ -100,7 +100,6 @@ void setup() {
   // Start Serial Monitor
   Serial.begin(115200);
   Serial.println("Starting setup...");
-  delay(5000);
 
   // Initialize TFT display
   tft.init();
@@ -203,7 +202,7 @@ void fetchWeatherData() {
     String cityName = doc["name"];
 
     // Display Weather Information on TFT
-    tft.fillRect(0, 200, 240, 40, TFT_BLACK); // Clear previous weather data
+    tft.fillRect(0, 200, 320, 40, TFT_BLACK); // Clear previous weather data
     tft.setCursor(10, 120);
     tft.setFreeFont(&Orbitron_Medium8pt7b);
     tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
