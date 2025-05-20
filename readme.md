@@ -25,7 +25,7 @@ This project turns an **ESP32 CYD (Cheap Yellow Display)** into a clean, full-sc
 
 ## 📸 Example Output
 
-> _(Add a screenshot or photo here if you can)_
+> _(COMING SOON)_
 
 ---
 
