@@ -1,0 +1,57 @@
+#include <TFT_eSPI.h>
+#include <HB9IIOrbitronMed10pt.h>  // Custom font
+
+TFT_eSPI tft = TFT_eSPI();  // Initialize TFT display
+TFT_eSprite stext2 = TFT_eSprite(&tft); // Sprite object for "Hello World" text
+
+int textX;  // Variable for text position (to start at the rightmost side)
+String scrollText = "The issue here is that we are using the scroll() method in conjunction with clearing the sprite"; // Text to scroll
+
+// Timing variables
+unsigned long previousMillis = 0;  // Store last time the action was performed
+const long interval = 25;  // Interval to control scrolling speed (in milliseconds)
+
+void setup() {
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);  // Fill the screen with black background
+
+  // Create a sprite for the "Hello World" text
+  stext2.setColorDepth(8);
+  stext2.createSprite(310, 20);  // Create a 310x20 sprite to accommodate the text width
+  stext2.setTextColor(TFT_WHITE);  // White text
+  stext2.setTextDatum(TL_DATUM);  // Top-left alignment for text
+  
+  // Set the font for the sprite
+  stext2.setFreeFont(&Orbitron_Medium10pt7b);  // Apply custom font to the sprite
+
+  // Calculate the initial position (rightmost position)
+  textX = stext2.width();
+}
+
+void loop() {
+  unsigned long currentMillis = millis();  // Get the current time
+  
+  // Check if the interval has passed
+  if (currentMillis - previousMillis >= interval) {
+    // Save the last time the action was performed
+    previousMillis = currentMillis;
+
+    // Clear the sprite
+    stext2.fillSprite(TFT_BLACK);  // Fill sprite with background color
+
+    // Draw the text inside the sprite at the specified position
+    stext2.drawString(scrollText, textX, 0);  // Draw text in sprite at position `textX`
+
+    // Scroll the text by shifting the position to the left
+    textX -= 1;  // Move text left by 1 pixel
+
+    // Reset position when text has scrolled off the screen
+    if (textX < -stext2.textWidth(scrollText)) {  // Text has completely scrolled off screen
+      textX = stext2.width();  // Reset position to the far right
+    }
+
+    // Push the sprite onto the TFT at the specified coordinates
+    stext2.pushSprite(5, 220);  // Push the sprite to the screen at position (5, 220)
+  }
+}
