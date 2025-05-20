@@ -46,25 +46,29 @@
 #include <HB9IIU7seg42pt.h> // https://rop.nl/truetype2gfx/ https://fontforge.org/en-US/
 #include <HB9IIUOrbitronMed8pt.h>
 #include <HB9IIOrbitronMed10pt.h>
+#include <digital_7__mono_42pt7b.h>
 #include <PNGdec.h>
 #include <SPIFFS.h>
 #include "config.h"
 
+//
+uint16_t localTimeColour = LOCAL_TIME_COLOUR;
+uint16_t utcTimeColour = UTC_TIME_COLOUR;
+
+
 
 // Global variables for configuration
-String SSID = WIFI_SSID;  // Wi-Fi credentials
+String SSID = WIFI_SSID; // Wi-Fi credentials
 String WiFiPassword = WIFI_PASSWORD;
-float latitude = LATITUDE; // Latitude
-float longitude = LONGITUDE; // Longitude
+float latitude = LATITUDE;       // Latitude
+float longitude = LONGITUDE;     // Longitude
 String apiKey = WEATHER_API_KEY; // API Key
 
 int tOffset = TIME_OFFSET;
 
-
 const String weatherAPI = "https://api.openweathermap.org/data/2.5/weather"; // OpenWeather API endpoint
 
-
-int retriesBeforeReboot=5;
+int retriesBeforeReboot = 5;
 
 // Global variables for previous time tracking
 String previousLocalTime = "";
@@ -79,7 +83,6 @@ int textX;                                                      // Variable for 
 String scrollText = "Sorry, No Weather Info At This Moment!!!"; // Text to scroll
 // Timing variables
 unsigned long previousMillisForScroller = 0; // Store last time the action was performed
-const long interval = 25;                    // Interval to control scrolling speed (in milliseconds)
 
 // NTP Client Setup
 WiFiUDP ntpUDP;
@@ -93,7 +96,7 @@ void connectWiFi();
 void fetchWeatherData();
 String formatLocalTime(long epochTime);
 String convertEpochToTimeString(long epochTime);
-void displayTime(int x, int y, String time, String &previousTime, int yOffset);
+void displayTime(int x, int y, String time, String &previousTime, int yOffset, uint16_t fontColor);
 String convertTimestampToDate(long timestamp);
 // PNG Decoder Setup
 PNG png;
@@ -119,7 +122,7 @@ void setup()
   Serial.println("TFT Display initialized!");
 
   // Display PNG from SPIFFS
-  displayPNGfromSPIFFS("logo.png", 0);
+  displayPNGfromSPIFFS(START_UP_LOGO, 0);
 
   // Connect to Wi-Fi
   connectWiFi();
@@ -132,16 +135,22 @@ void setup()
 
   fetchWeatherData();
   tft.setFreeFont(&Orbitron_Medium8pt7b);
-  tft.drawRoundRect(0, 0, 320, 87, 5, TFT_GREEN);
+  tft.drawRoundRect(0, 0, 320, 87, 5, LOCAL_FRAME);
+  if (DOUBLE_FRAME){
+    tft.drawRoundRect(1, 1, 318, 85, 4, LOCAL_FRAME);
+}
   tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-  tft.drawCentreString(" Orario QTH  ", 160, 76, 1);
-  tft.drawRoundRect(0, 105, 320, 87, 5, TFT_GREEN);
-  tft.drawCentreString(" Orario UTC  ", 160, 76 + 105, 1);
+  tft.drawCentreString(LOCAL_TIME_FRAME_LABEL, 160, 76, 1);
+  tft.drawRoundRect(0, 105, 320, 87, 5, UTC_FRAME);
+    if (DOUBLE_FRAME){
+  tft.drawRoundRect(1, 106, 318, 85, 4, UTC_FRAME);
+}
+  tft.drawCentreString(UTC_TIME_FRAME_LABEL, 160, 76 + 105, 1);
 
   // Create a sprite for the Weather text
   stext2.setColorDepth(8);
   stext2.createSprite(310, 30);   // Create a 310x20 sprite to accommodate the text width
-  stext2.setTextColor(TFT_WHITE); // White text
+  stext2.setTextColor(BANNER_COLOUR); // White text
   stext2.setTextDatum(TL_DATUM);  // Top-left alignment for text
 
   // Set the font for the sprite
@@ -169,11 +178,14 @@ void loop()
 
   // Display Local and UTC Time with different y positions
   tft.setTextColor(TFT_WHITE); // Set text color to white
+  if (ITALIC_CLOCK_FONTS) { 
   tft.setFreeFont(&digital_7_monoitalic42pt7b);
-
+  }else{
+    tft.setFreeFont(&digital_7__mono_42pt7b);
+}
   // Corrected y positions for both clocks
-  displayTime(8, 5, localTime, previousLocalTime, 0); // Display local time at y = 5
-  displayTime(10, 107, utcTime, previousUTCtime, 0);  // Display UTC time at y = 106
+  displayTime(8, 5, localTime, previousLocalTime, 0,localTimeColour); // Display local time at y = 5
+  displayTime(10, 107, utcTime, previousUTCtime, 0,utcTimeColour);  // Display UTC time at y = 106
 
   // Fetch Weather Data once every hour
   if (currentMillis - previousMillis >= 3600000)
@@ -182,7 +194,7 @@ void loop()
     fetchWeatherData();
   }
   // Check if the interval has passed
-  if (currentMillis - previousMillisForScroller >= interval)
+  if (currentMillis - previousMillisForScroller >= BANNER_SPEED)
   {
     // Save the last time the action was performed
     previousMillisForScroller = currentMillis;
@@ -191,7 +203,7 @@ void loop()
     stext2.fillSprite(TFT_BLACK); // Fill sprite with background color
 
     // Draw the text inside the sprite at the specified position
-    stext2.setTextColor(TFT_GREEN);
+    stext2.setTextColor(BANNER_COLOUR);
     stext2.drawString(scrollText, textX, 0); // Draw text in sprite at position `textX`
 
     // Scroll the text by shifting the position to the left
@@ -241,7 +253,7 @@ void fetchWeatherData()
   http.begin(weatherURL);
   Serial.println("");
   Serial.println(weatherURL);
-    Serial.println("");
+  Serial.println("");
 
   int httpCode = http.GET();
 
@@ -444,8 +456,9 @@ String convertEpochToTimeString(long epochTime)
   return String(buffer);
 }
 
-// Function to display time (local or UTC) with change detection
-void displayTime(int x, int y, String time, String &previousTime, int yOffset)
+
+// Function to display time (local or UTC) with change detection and custom font color
+void displayTime(int x, int y, String time, String &previousTime, int yOffset, uint16_t fontColor)
 {
   // Define the calculated positions for each character
   int positions[] = {x, x + 48, x + 78, x + 108, x + 156, x + 186, x + 216, x + 264};
@@ -455,16 +468,17 @@ void displayTime(int x, int y, String time, String &previousTime, int yOffset)
   {
     if (time[i] != previousTime[i])
     { // If the digit is different
-      tft.setTextColor(TFT_BLACK);
-      tft.drawString(String(previousTime[i]), positions[i], y + yOffset, 1); // Erase previous digit in black
-      tft.setTextColor(TFT_WHITE);
-      tft.drawString(String(time[i]), positions[i], y + yOffset, 1); // Draw new digit in white
+      tft.setTextColor(TFT_BLACK); // Erase previous digit in black
+      tft.drawString(String(previousTime[i]), positions[i], y + yOffset, 1);
+      tft.setTextColor(fontColor); // Use the passed font color for new digit
+      tft.drawString(String(time[i]), positions[i], y + yOffset, 1); // Draw new digit
     }
   }
 
-  // Update the previous time to the new time for the next loop
+  // Update the previousTime to the current time after drawing
   previousTime = time;
 }
+
 
 // PNG Decoder Callback Functions
 void *fileOpen(const char *filename, int32_t *size)
