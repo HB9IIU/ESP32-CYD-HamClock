@@ -43,10 +43,10 @@
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
 #include <TimeLib.h>
-#include <HB9IIU7seg42pt.h> // https://rop.nl/truetype2gfx/ https://fontforge.org/en-US/
+#include <HB9IIU7seg42ptItalic.h> // https://rop.nl/truetype2gfx/ https://fontforge.org/en-US/
 #include <HB9IIUOrbitronMed8pt.h>
 #include <HB9IIOrbitronMed10pt.h>
-#include <digital_7__mono_42pt7b.h>
+#include <HB9IIU7seg42ptNormal.h>
 #include <PNGdec.h>
 #include <SPIFFS.h>
 #include "config.h"
@@ -414,7 +414,8 @@ void fetchWeatherData()
     String sunsetTime = convertEpochToTimeString(localSunset);
     String date = convertTimestampToDate(dt); // Convert to DD:MM:YY format
     // Build the scrollText with the date, weather, sunrise, and sunset times
-    scrollText = String(name) + "     " + date + "     " +
+    scrollText = String(name) + "     " + sys_country+ "    "+
+                    date + "     " +
                  "Temp: " + String(temp, 1) + "°C     " + // One decimal place for temp
                  "RH: " + String(humidity) + "%" + "       " +
                  String(weatherDescription) + "       " +
