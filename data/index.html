@@ -155,7 +155,35 @@
                     </div>
                 </div>
             </div>
-            <div class="row" data-empty-placeholder></div>
+            <div class="row mt-4">
+                <div class="col-md-4 d-flex flex-column align-items-center">
+                    <img src="logo1.png" class="img-fluid mb-2" alt="Boot Image 1">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="bootImage" id="bootImage1" value="logo1.png" onclick="selectBootImage(this.value)">
+                        <label class="form-check-label text-white" for="bootImage1" style="font-family: 'Orbitron', sans-serif; font-size: 18px;">
+                            Boot Image 1
+</label>
+                    </div>
+                </div>
+                <div class="col-md-4 d-flex flex-column align-items-center">
+                    <img src="logo2.png" class="img-fluid mb-2" alt="Boot Image 2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="bootImage" id="bootImage2" value="logo2.png" onclick="selectBootImage(this.value)">
+                        <label class="form-check-label text-white" for="bootImage2" style="font-family: 'Orbitron', sans-serif; font-size: 18px;">
+                            Boot Image 2
+</label>
+                    </div>
+                </div>
+                <div class="col-md-4 d-flex flex-column align-items-center">
+                    <img src="logo3.png" class="img-fluid mb-2" alt="Boot Image 3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="bootImage" id="bootImage3" value="logo3.png" onclick="selectBootImage(this.value)">
+                        <label class="form-check-label text-white" for="bootImage3" style="font-family: 'Orbitron', sans-serif; font-size: 18px;">
+                            Boot Image 3
+</label>
+                    </div>
+                </div>
+            </div>
             <div class="row mt-3">
                 <div class="col text-center">
                     <button id="saveAllButton" type="button" class="btn btn-light px-4 py-2" style="font-family: 'Orbitron', sans-serif; font-weight: 700; display: inline-block;">
@@ -229,32 +257,28 @@
     }
 
     // Function to format the time as HH:MM:SS
-    function formatTime(date) {
-        let hours = date.getHours();
-        let minutes = date.getMinutes();
-        let seconds = date.getSeconds();
+    function formatTime(date, useUTC = false) {
+        let hours = useUTC ? date.getUTCHours() : date.getHours();
+        let minutes = useUTC ? date.getUTCMinutes() : date.getMinutes();
+        let seconds = useUTC ? date.getUTCSeconds() : date.getSeconds();
 
-        // Add leading zeros if the numbers are less than 10
-        hours = hours < 10 ? '0' + hours : hours;
-        minutes = minutes < 10 ? '0' + minutes : minutes;
-        seconds = seconds < 10 ? '0' + seconds : seconds;
-
-        return `${hours}:${minutes}:${seconds}`;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
+
 
     // Function to update the current local and UTC time
     function updateTime() {
-        const localTime = new Date();
-        const utcTime = new Date(localTime.toUTCString()); // Create a UTC version of the local time
+        const now = new Date();
 
-        // Format the times
-        const formattedLocalTime = formatTime(localTime);
-        const formattedUtcTime = formatTime(utcTime);
+        const formattedLocalTime = formatTime(now, false); // Local
+        const formattedUtcTime = formatTime(now, true);    // UTC
 
-        // Update the labels with the respective times
         document.getElementById("localTime").innerText = formattedLocalTime;
         document.getElementById("utcTime").innerText = formattedUtcTime;
     }
+
+
+
 
     // Call updateTime every second to keep the times updated
     setInterval(updateTime, 1000);
@@ -306,6 +330,23 @@
         });
     });
 
+
+    function selectBootImage(id) {
+        saveBootImage(id);
+    }
+
+    function saveBootImage(id) {
+        fetch('/setbootimage', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ bootImageId: id })
+        }).then(res => {
+            if (!res.ok) throw new Error("Failed to save boot image");
+            console.log("✅ Boot image ID saved:", id);
+        }).catch(err => {
+            console.error("❌ Error saving boot image:", err);
+        });
+    }
 
 
 

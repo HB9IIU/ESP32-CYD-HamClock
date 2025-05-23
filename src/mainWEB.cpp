@@ -133,7 +133,6 @@ int32_t fileRead(PNGFILE *handle, uint8_t *buffer, int32_t length);
 int32_t fileSeek(PNGFILE *handle, int32_t position);
 void displayPNGfromSPIFFS(const char *filename, int duration_ms);
 
-
 void saveSettings();
 void setup()
 {
@@ -148,9 +147,9 @@ void setup()
     }
     // Load saved settings first
     loadSettings();
-    //saveSettings();
-    //bannerSpeed=40;
-    // Initialize TFT display
+    // saveSettings();
+    //  bannerSpeed=40;
+    //   Initialize TFT display
     tft.init();
     tft.setRotation(1);
     tft.fillScreen(TFT_BLACK);
@@ -161,23 +160,40 @@ void setup()
 
     // Connect to Wi-Fi
     connectWiFi();
-    
-        ArduinoOTA.onStart([]()
-                           { Serial.println("Start updating"); });
-        ArduinoOTA.onEnd([]()
-                         { Serial.println("End"); });
-        ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
-                              { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); });
-        ArduinoOTA.onError([](ota_error_t error)
-                           { Serial.printf("Error[%u]: ", error); });
 
-        ArduinoOTA.begin();
-        Serial.println("OTA Ready. Hostname: " + WiFi.localIP().toString());
-   
+    // Start OTA
+    ArduinoOTA.setHostname("hb9iiuhamclock"); // 🧠 Make sure OTA uses the same hostname
+    ArduinoOTA.onStart([]()
+                       { Serial.println("Start updating"); });
+    ArduinoOTA.onEnd([]()
+                     { Serial.println("End"); });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+                          { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); });
+    ArduinoOTA.onError([](ota_error_t error)
+                       { Serial.printf("Error[%u]: ", error); });
+    ArduinoOTA.begin();
+    Serial.println("🚀 OTA Ready");
+
+    // Start mDNS AFTER OTA
+    if (!MDNS.begin("hb9iiuhamclock"))
+    {
+        Serial.println("⚠️ Failed to start mDNS responder!");
+    }
+    else
+    {
+        Serial.println("🌍 mDNS started successfully. You can access via http://hb9iiuhamclock.local");
+    }
+
     // Start Web Server
     server.on("/", handleRoot);                // Serve the HTML page
     server.on("/save", HTTP_POST, handleSave); // Handle form submit
-    server.begin();
+                                               // Serve all static files (HTML, PNG, CSS, etc.)
+server.serveStatic("/images", SPIFFS, "/images"); // if you have images in /images/
+server.serveStatic("/fonts", SPIFFS, "/fonts");   // optional
+server.serveStatic("/logo1.png", SPIFFS, "/logo1.png");
+server.serveStatic("/logo2.png", SPIFFS, "/logo2.png");
+server.serveStatic("/logo3.png", SPIFFS, "/logo3.png");
+
     Serial.println("🌐 Web server started at http://" + WiFi.localIP().toString());
 
     server.on("/config", HTTP_GET, []()
@@ -205,7 +221,8 @@ void setup()
     server.on("/scrolltext", []()
               { server.send(200, "text/plain", scrollText); });
 
-    server.on("/setcolor", HTTP_POST, []() {
+    server.on("/setcolor", HTTP_POST, []()
+              {
     if (!server.hasArg("plain")) {
         server.send(400, "text/plain", "Missing body");
         return;
@@ -256,11 +273,10 @@ if (target == "doubleFrame") {
     drawOrredrawStaticElements();
     refreshDigits = true;
 
-    server.send(200, "text/plain", "OK");
-});
+    server.send(200, "text/plain", "OK"); });
 
-
-server.on("/setspeed", HTTP_POST, []() {
+    server.on("/setspeed", HTTP_POST, []()
+              {
     if (!server.hasArg("plain")) {
         server.send(400, "text/plain", "Missing body");
         return;
@@ -278,12 +294,11 @@ server.on("/setspeed", HTTP_POST, []() {
     Serial.println(bannerSpeed);
 
     Serial.printf("🎬 bannerSpeed set to %d seconds\n", bannerSpeed);
-    server.send(200, "text/plain", "OK");
-});
+    server.send(200, "text/plain", "OK"); });
 
-
-// ESP32 WebServer endpoint for setting labels without saving
-server.on("/setlabel", HTTP_POST, []() {
+    // ESP32 WebServer endpoint for setting labels without saving
+    server.on("/setlabel", HTTP_POST, []()
+              {
     if (!server.hasArg("plain")) {
         server.send(400, "text/plain", "Missing body");
         return;
@@ -314,10 +329,10 @@ server.on("/setlabel", HTTP_POST, []() {
     refreshFrames = true;
     drawOrredrawStaticElements();
 
-    server.send(200, "text/plain", "OK");
-});
+    server.send(200, "text/plain", "OK"); });
 
-server.on("/setposition", HTTP_POST, []() {
+    server.on("/setposition", HTTP_POST, []()
+              {
     if (!server.hasArg("plain")) {
         server.send(400, "text/plain", "Missing body");
         Serial.println("⚠️ No body received");
@@ -350,10 +365,10 @@ server.on("/setposition", HTTP_POST, []() {
 
     fetchWeatherData();
 
-    server.send(200, "text/plain", "OK");
-});
+    server.send(200, "text/plain", "OK"); });
 
-server.on("/setitalic", HTTP_POST, []() {
+    server.on("/setitalic", HTTP_POST, []()
+              {
     if (!server.hasArg("plain")) {
         server.send(400, "text/plain", "Missing body");
         return;
@@ -374,15 +389,69 @@ server.on("/setitalic", HTTP_POST, []() {
     // Optionally persist
     // saveSettings();
 
-    server.send(200, "text/plain", "OK");
-});
+    server.send(200, "text/plain", "OK"); });
 
-server.on("/saveall", HTTP_POST, []() {
+    server.on("/saveall", HTTP_POST, []()
+              {
     saveSettings();
-    server.send(200, "text/plain", "💾 Settings saved to flash");
-});
+    server.send(200, "text/plain", "💾 Settings saved to flash"); });
 
+    server.on("/setbootimage", HTTP_POST, []()
+              {
+                  if (!server.hasArg("plain"))
+                  {
+                      server.send(400, "text/plain", "Missing body");
+                      return;
+                  }
 
+                  StaticJsonDocument<256> doc;
+                  DeserializationError error = deserializeJson(doc, server.arg("plain"));
+                  if (error)
+                  {
+                      server.send(400, "text/plain", "JSON parse error");
+                      return;
+                  }
+
+                  if (!doc.containsKey("bootImageId"))
+                  {
+                      server.send(400, "text/plain", "Missing bootImageId");
+                      return;
+                  }
+
+                  startupLogo = doc["bootImageId"].as<String>();
+                  Serial.printf("🖼️ Boot logo updated to: %s\n", startupLogo.c_str());
+
+                  server.send(200, "text/plain", "Boot logo saved");
+                  saveSettings(); // 💾 Persist the change
+              });
+
+    server.on("/setbootimage", HTTP_POST, []()
+              {
+    if (!server.hasArg("plain")) {
+        server.send(400, "text/plain", "Missing body");
+        return;
+    }
+
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, server.arg("plain"));
+    if (error) {
+        server.send(400, "text/plain", "JSON parse error");
+        return;
+    }
+
+    if (!doc.containsKey("bootImageId")) {
+        server.send(400, "text/plain", "Missing bootImageId");
+        return;
+    }
+
+    startupLogo = doc["bootImageId"].as<String>();
+    Serial.printf("🖼️ Boot logo updated to: %s\n", startupLogo.c_str());
+
+    saveSettings(); // 💾 Persist the change
+
+    server.send(200, "text/plain", "Boot logo saved"); });
+
+    server.begin();
 
     // Initialize NTP Client
     timeClient.begin();
@@ -409,7 +478,7 @@ server.on("/saveall", HTTP_POST, []() {
 
 void loop()
 {
-    // ArduinoOTA.handle();
+    ArduinoOTA.handle();
     server.handleClient(); // ⬅️ Serve HTTP requests
     // Calculate time elapsed since last weather data fetch
     unsigned long currentMillis = millis();
@@ -505,18 +574,6 @@ void connectWiFi()
     Serial.println("✅ Wi-Fi connected!");
     Serial.print("📶 IP Address: ");
     Serial.println(WiFi.localIP());
-
-    // Start mDNS responder
-    if (!MDNS.begin(hostname.c_str()))
-    {
-        Serial.println("⚠️ Failed to start mDNS responder!");
-    }
-    else
-    {
-        Serial.print("🌍 mDNS started successfully. Access via: ");
-        Serial.print(hostname);
-        Serial.println(".local");
-    }
 }
 
 // Fetch weather data
@@ -827,8 +884,6 @@ void displayPNGfromSPIFFS(const char *filename, int duration_ms)
     delay(duration_ms);
 }
 
-
-
 // Function to convert Unix timestamp to human-readable format (DD:MM:YY)
 String convertTimestampToDate(long timestamp)
 {
@@ -846,6 +901,8 @@ void loadSettings()
     if (!file)
     {
         Serial.println("⚠️ Could not open settings file. Using defaults.");
+        saveSettings();
+        esp_restart();
         return;
     }
 
@@ -926,7 +983,7 @@ void saveSettings()
 // Serve index.html from SPIFFS
 void handleRoot()
 {
-    Serial.println("I am here");
+
     fs::File file = SPIFFS.open("/index.html", "r"); // ✅ Declare 'file' properly here
     if (!file)
     {
@@ -972,11 +1029,11 @@ void drawOrredrawStaticElements()
         refreshFrames = false;
         refreshFramesCounter = 0;
     }
-    previousLocalTime="";
-    previousUTCtime="";
+    previousLocalTime = "";
+    previousUTCtime = "";
     tft.setFreeFont(&Orbitron_Medium8pt7b);
-    tft.fillRect(25, 0+85-10,270, 20, TFT_BLACK);
-tft.fillRect(25, 106+85-10,270, 20, TFT_BLACK);
+    tft.fillRect(25, 0 + 85 - 10, 270, 20, TFT_BLACK);
+    tft.fillRect(25, 106 + 85 - 10, 270, 20, TFT_BLACK);
 
     // 🟩 Local Frame
     tft.fillRect(0, 0, 320, 87, TFT_BLACK); // Clear previous frame
