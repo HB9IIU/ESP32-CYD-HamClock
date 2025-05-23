@@ -32,9 +32,10 @@ Clean layout, large fonts, and dual clocks make it ideal for quick glances while
 | 🌐 NTP Time Sync         | Always accurate via `pool.ntp.org`                                          |
 | ☀️ Weather Data           | From OpenWeather API, updated every 5 minutes                              |
 | 📄 PNG Splash Screen      | Loads `logo1.png`, `logo2.png`, or `logo3.png` from SPIFFS on boot          |
-| 🖌️ Customizable Appearance | Colors, font styles, scroll speed, and labels via web interface             |
+| 🖌️ Customizable Appearance | Colors, font styles, scroll speed, and labels via onboard web interface     |
 | 🔁 Auto-Reconnect Wi-Fi   | Retries Wi-Fi and reboots after repeated failures                           |
-| 🧑‍💻 OTA Support           | Upload new firmware or SPIFFS files over-the-air after first USB flash      |
+| 🌐 Web Configurator       | Change all settings live: colors, text, banner speed, and more              |
+| 📲 OTA Updates            | Upload firmware wirelessly after first flash via USB                        |
 
 ---
 
@@ -55,79 +56,73 @@ Clean layout, large fonts, and dual clocks make it ideal for quick glances while
 
 ## ⚙️ Configuration
 
-First-time setup is done via USB. Edit the `config.h` file like this:
+All static settings are in `config.h`. Here's a sample:
 
 ```cpp
-#ifndef CONFIG_H
-#define CONFIG_H
-
 // WiFi Credentials
-#define WIFI_SSID "your_wifi_name"
+#define WIFI_SSID "your_wifi_ssid"
 #define WIFI_PASSWORD "your_wifi_password"
 
-// Weather API Key
-#define WEATHER_API_KEY "your_api_key_here"
+// OpenWeatherMap API Key
+#define WEATHER_API_KEY "your_openweather_key"
 #define WEATHER_API_URL "https://api.openweathermap.org/data/2.5/weather"
 
-// Coordinates for Geneva, Switzerland
+// Location (Geneva, Switzerland)
 #define LATITUDE 46.2044
 #define LONGITUDE 6.1432
-
-#endif // CONFIG_H
 ```
-
-Then upload once via USB. After that, you can use **OTA**:
-
-### OTA Upload (PlatformIO)
-
-In your `platformio.ini` file:
-
-```ini
-; Uncomment below for OTA update
-upload_protocol = espota
-upload_port = hb9iiuhamclock.local
-```
-
-Then simply hit `Upload` again. No wires needed! 🔁
 
 ---
 
-## 🌐 Web-Based Configurator
+## 🔄 Initial Flash & Filesystem Upload
 
-After uploading, open the web interface at:
+To get started:
 
-```
-http://hb9iiuhamclock.local
-```
+1. **Flash the firmware via USB cable**:
+   ```bash
+   pio run --target upload
+   ```
 
-Use it to update:
+2. **Upload the filesystem (SPIFFS)** — required to display the web interface and boot images:
+   ```bash
+   pio run --target uploadfs
+   ```
 
-- Digit & frame colors for both clocks
-- Labels (e.g., "QTH Time")
-- Weather banner color & scroll speed
-- Fonts (italic toggle)
-- Boot logo selection (logo1, logo2, logo3)
-- Latitude & Longitude (to get local weather)
-- Save all to flash memory via a single button
+> 📁 The SPIFFS contains:
+> - HTML & JavaScript files for the configurator
+> - Boot logo PNG images (`logo1.png`, `logo2.png`, `logo3.png`)
+> - Settings stored in `settings.json`
 
-No need to recompile for visual changes!
+3. Once flashed, the device hosts a **web interface** for configuration at:
+   ```
+   http://hb9iiuhamclock.local
+   ```
 
----
-
-## 🧪 Tips
-
-- Reboot automatically if Wi-Fi fails too often
-- OTA updates show progress and RAM info directly on the TFT
-- Includes NTP sync and real-time updates
-
----
-
-## 📷 Screenshots / Demos
-
-📸 Coming soon…
+4. ✅ After the first successful flash, you can **enable OTA updates** by editing `platformio.ini`:
+   ```ini
+   ; Uncomment for OTA updates
+   upload_protocol = espota
+   upload_port = hb9iiuhamclock.local
+   ```
 
 ---
 
-## 📡 73! from HB9IIU
+## 🧑‍💻 Customization via Web Interface
 
-Built for real ham shacks, tested on the bench, ready for the world. Enjoy! 🇨🇭
+Visit your ESP32 on the network to customize:
+- Clock colors (digits, frame)
+- Labels (e.g., “QTH Time”)
+- Scroll speed
+- Boot image (PNG from SPIFFS)
+- Location coordinates (for weather)
+- Italic vs normal fonts
+- Save everything to flash memory
+
+---
+
+## 🙌 Final Notes
+
+This project is designed for **ease of use and ham shack aesthetics**.  
+Big digits, readable fonts, OTA updates, and a slick web interface — everything you need in one elegant display.
+
+Enjoy & 73 de **HB9IIU** 🇨🇭
