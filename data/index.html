@@ -112,21 +112,22 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="text-white weather-banner" data-pg-collapsed style="font-family: 'Orbitron', sans-serif;">
-                                <div class="bg-dark weather-banner-text" id="weatherBannerText" style="color: #915656;">Local
-                                    Weather Information and
-                                    Astronomical Data
+                            <!-- Outer container with 50px horizontal margin -->
+                            <div class="col-12" style="padding: 0 100px;">
+                                <div class="text-white weather-banner" style="font-family: 'Orbitron', sans-serif;">
+                                    <div class="bg-dark weather-banner-text" id="weatherBannerText" style="color: #915656;">
+                                        Local Weather Information and Astronomical Data
 </div>
+                                </div>
                             </div>
-                            <!-- Slider for adjusting the scrolling speed -->
-                            <div class="row" data-pg-collapsed style="margin-top: 20px;">
-</div>
-                            <div class="form-check d-flex justify-content-center" data-pg-collapsed>
+                            <!-- Slider label and radio -->
+                            <div class="form-check d-flex justify-content-center mt-3">
                                 <input class="form-check-input" id="line7" name="line" onclick="setColorTarget('weatherBannerText')" style="font-size: 18px;" type="radio" value="line7">
                                 <label class="form-check-label text-white" for="line7" style="font-size: 18px; font-family: 'Orbitron', sans-serif;">
                                     Weather Info Banner
 </label>
                             </div>
+                            <!-- Speed Slider Row -->
                             <div class="col-md-12 text-center">
                                 <div class="row" style="margin-bottom: 20px; display: flex; justify-content: center;">
                                     <input id="speedSlider" max="45" min="0" step="1" style="width: 80%; margin-top: 10px;" type="range" value="10">

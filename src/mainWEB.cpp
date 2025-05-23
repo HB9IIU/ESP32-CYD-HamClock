@@ -317,7 +317,7 @@ void setup()
                          tft.setTextColor(TFT_WHITE, TFT_BLACK);
                          tft.drawCentreString("73 from HB9IIU", 160, 200, 1);
 
-                         delay(10000); // Show for 8 seconds before reboot or resume
+                         delay(7000); // Show for 8 seconds before reboot or resume
                      });
 
     ArduinoOTA.onError([](ota_error_t error)
