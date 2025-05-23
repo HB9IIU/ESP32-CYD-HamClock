@@ -19,7 +19,6 @@ It displays:
 - 🖼️ A splash screen logo (loaded from SPIFFS)
 - 🔄 Auto-syncs time using NTP
 - 🧭 Your QTH location via coordinates for precise weather info
-- 🧠 **New: Web-based configuration UI!**
 
 Clean layout, large fonts, and dual clocks make it ideal for quick glances while operating.
 
@@ -27,15 +26,15 @@ Clean layout, large fonts, and dual clocks make it ideal for quick glances while
 
 ## ✨ Features
 
-| Feature                   | Description                                                                 |
-|---------------------------|-----------------------------------------------------------------------------|
-| 🕒 Dual Clocks             | Local time (top) and UTC (bottom) in 7-segment style fonts                  |
-| 🌐 NTP Time Sync           | Always accurate via `pool.ntp.org`                                          |
-| ☀️ Weather Data            | From OpenWeather API, updated every 5 minutes                              |
-| 📄 PNG Splash Screen       | Loads `logo1.png`, `logo2.png`, or `logo3.png` from SPIFFS on boot          |
-| 🧑‍💻 Web Configurator (NEW!) | Change colors, labels, font style, banner speed, location — via webpage!     |
-| 🔁 Auto-Reconnect Wi-Fi    | Retries Wi-Fi and reboots after repeated failures                           |
-| 📦 OTA Updates (optional)  | Upload firmware **wirelessly** after first USB flash                        |
+| Feature                  | Description                                                                 |
+|--------------------------|-----------------------------------------------------------------------------|
+| 🕒 Dual Clocks            | Local time (top) and UTC (bottom) in 7-segment style fonts                  |
+| 🌐 NTP Time Sync         | Always accurate via `pool.ntp.org`                                          |
+| ☀️ Weather Data           | From OpenWeather API, updated every 5 minutes                              |
+| 📄 PNG Splash Screen      | Loads `logo1.png`, `logo2.png`, or `logo3.png` from SPIFFS on boot          |
+| 🖌️ Customizable Appearance | Colors, font styles, scroll speed, and labels via web interface             |
+| 🔁 Auto-Reconnect Wi-Fi   | Retries Wi-Fi and reboots after repeated failures                           |
+| 🧑‍💻 OTA Support           | Upload new firmware or SPIFFS files over-the-air after first USB flash      |
 
 ---
 
@@ -54,91 +53,81 @@ Clean layout, large fonts, and dual clocks make it ideal for quick glances while
 
 ---
 
-## 🚀 Flashing Instructions
+## ⚙️ Configuration
 
-### 1️⃣ First Upload via USB Cable
+First-time setup is done via USB. Edit the `config.h` file like this:
 
-- Connect the ESP32 CYD via USB
-- Open `platformio.ini` and use this default:
+```cpp
+#ifndef CONFIG_H
+#define CONFIG_H
 
-```ini
-upload_protocol = esptool
+// WiFi Credentials
+#define WIFI_SSID "your_wifi_name"
+#define WIFI_PASSWORD "your_wifi_password"
+
+// Weather API Key
+#define WEATHER_API_KEY "your_api_key_here"
+#define WEATHER_API_URL "https://api.openweathermap.org/data/2.5/weather"
+
+// Coordinates for Geneva, Switzerland
+#define LATITUDE 46.2044
+#define LONGITUDE 6.1432
+
+#endif // CONFIG_H
 ```
 
-- Upload both firmware and SPIFFS:
+Then upload once via USB. After that, you can use **OTA**:
 
-```bash
-pio run -t upload
-pio run -t uploadfs
-```
+### OTA Upload (PlatformIO)
 
----
-
-### 2️⃣ Enable OTA for Future Uploads
-
-Once the device is online and `hb9iiuhamclock.local` is reachable:
-
-- Edit `platformio.ini`:
+In your `platformio.ini` file:
 
 ```ini
-# Uncomment below for OTA update
+; Uncomment below for OTA update
 upload_protocol = espota
 upload_port = hb9iiuhamclock.local
 ```
 
-- Upload code wirelessly:
+Then simply hit `Upload` again. No wires needed! 🔁
 
-```bash
-pio run -t upload
+---
+
+## 🌐 Web-Based Configurator
+
+After uploading, open the web interface at:
+
+```
+http://hb9iiuhamclock.local
 ```
 
-> ℹ️ SPIFFS uploads over OTA **are not supported** — for web UI changes, re-upload via USB.
+Use it to update:
+
+- Digit & frame colors for both clocks
+- Labels (e.g., "QTH Time")
+- Weather banner color & scroll speed
+- Fonts (italic toggle)
+- Boot logo selection (logo1, logo2, logo3)
+- Latitude & Longitude (to get local weather)
+- Save all to flash memory via a single button
+
+No need to recompile for visual changes!
 
 ---
 
-## ⚙️ Configuration
+## 🧪 Tips
 
-All defaults live in `config.h`, but **everything can now be changed via the built-in web interface**.
-
-### 🧾 Example `config.h` Template
-
-```cpp
-#define WIFI_SSID      "YourNetwork"
-#define WIFI_PASSWORD  "YourPassword"
-
-#define WEATHER_API_KEY "your_api_key_here"
-
-#define LATITUDE        46.4667118
-#define LONGITUDE       6.8590456
-#define TIME_OFFSET     2 // e.g. 2 = CEST
-
-#define LOCAL_TIME_COLOUR TFT_GREEN
-#define UTC_TIME_COLOUR   TFT_GOLD
-
-#define DOUBLE_FRAME      false
-#define LOCAL_FRAME       TFT_DARKGREY
-#define UTC_FRAME         TFT_DARKGREY
-#define BANNER_COLOUR     TFT_DARKGREEN
-#define BANNER_SPEED      20 // Lower = faster scroll
-
-#define LOCAL_TIME_FRAME_LABEL "  QTH Time  "
-#define UTC_TIME_FRAME_LABEL   "  UTC Time  "
-
-#define START_UP_LOGO "logo1.png" // logo1.png / logo2.png / logo3.png
-#define ITALIC_CLOCK_FONTS false  // Use italic 7-segment fonts or not
-```
+- Reboot automatically if Wi-Fi fails too often
+- OTA updates show progress and RAM info directly on the TFT
+- Includes NTP sync and real-time updates
 
 ---
 
-## 🧪 Tested With
+## 📷 Screenshots / Demos
 
-- ✅ ESP32 DevKitC and ESP32 CYD boards
-- ✅ PlatformIO Core 6.1+
-- ✅ OpenWeatherMap free API tier
-- ✅ Chrome/Firefox for web configuration
+📸 Coming soon…
 
 ---
 
-## 73! de HB9IIU
+## 📡 73! from HB9IIU
 
-Enjoy this shack companion — and if you're operating digital, **may the prop be with you!**
+Built for real ham shacks, tested on the bench, ready for the world. Enjoy! 🇨🇭

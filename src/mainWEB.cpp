@@ -62,7 +62,7 @@ String SSID = WIFI_SSID; // Wi-Fi credentials
 String WiFiPassword = WIFI_PASSWORD;
 String apiKey = WEATHER_API_KEY; // API Key
 
-int tOffset = TIME_OFFSET;
+int tOffset =  2; // e.g. 2 = CEST
 
 // Create web server
 WebServer server(80); // HTTP server on port 80
