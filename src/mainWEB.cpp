@@ -94,8 +94,9 @@ volatile bool refreshFrames = false;
 int refreshFramesCounter = 0;
 
 // TFT Display Setup
-TFT_eSPI tft = TFT_eSPI();              // Create TFT display object
-TFT_eSprite stext2 = TFT_eSprite(&tft); // Sprite object for "Hello World" text
+TFT_eSPI tft = TFT_eSPI();                   // Create TFT display object
+TFT_eSprite stext2 = TFT_eSprite(&tft);      // Sprite object for "Hello World" text
+TFT_eSprite progressBar = TFT_eSprite(&tft); // Create sprite for OTA progress bar
 
 // Scrolling Text
 int textX;                                                                                      // Variable for text position (to start at the rightmost side)
@@ -163,14 +164,210 @@ void setup()
 
     // Start OTA
     ArduinoOTA.setHostname("hb9iiuhamclock"); // 🧠 Make sure OTA uses the same hostname
+
     ArduinoOTA.onStart([]()
-                       { Serial.println("Start updating"); });
-    ArduinoOTA.onEnd([]()
-                     { Serial.println("End"); });
+                       {
+    String type = (ArduinoOTA.getCommand() == U_FLASH) ? "Firmware" : "Filesystem";
+
+    Serial.println("🛠️ OTA Update Start: " + type);
+
+    // Clear TFT and display OTA message
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setFreeFont(&Orbitron_Light_32);
+    tft.drawCentreString("Receiving New", 160, 10, 1); 
+    tft.setTextColor(TFT_RED, TFT_BLACK);
+    tft.drawCentreString(type, 160, 70, 1); });
+
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
-                          { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); });
+                          {
+                              int percent = (progress * 100) / total;
+                              Serial.printf("Progress: %u%%\r", percent);
+
+                              // Clear the sprite
+                              progressBar.fillSprite(TFT_DARKGREY);
+
+                              // Draw filled portion
+                              int barWidth = map(percent, 0, 100, 0, 300);
+                              progressBar.fillRect(0, 0, barWidth, 30, TFT_GREEN);
+
+                              // Optional: Draw percent text
+                              char buf[16];
+                              sprintf(buf, "%d%%", percent);
+                              progressBar.setTextDatum(CC_DATUM);
+                              ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+                                                    {
+                                                        int percent = (progress * 100) / total;
+                                                        Serial.printf("Progress: %u%%\r", percent);
+
+                                                        // Clear the sprite
+                                                        progressBar.fillSprite(TFT_DARKGREY);
+
+                                                        // Draw filled portion
+                                                        int barWidth = map(percent, 0, 100, 0, 300);
+                                                        progressBar.fillRect(0, 0, barWidth, 30, TFT_GREEN);
+
+                                                        // Optional: Draw percent text
+                                                        char buf[16];
+                                                        sprintf(buf, "%d%%", percent);
+                                                        progressBar.setTextDatum(CC_DATUM);
+                                                        progressBar.setTextColor(TFT_WHITE, TFT_DARKGREY);
+                                                        ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+                                                                              {
+                                                                                  int percent = (progress * 100) / total;
+                                                                                  Serial.printf("Progress: %u%%\r", percent);
+
+                                                                                  // Clear the sprite
+                                                                                  progressBar.fillSprite(TFT_DARKGREY);
+
+                                                                                  // Draw filled portion
+                                                                                  int barWidth = map(percent, 0, 100, 0, 300);
+                                                                                  progressBar.fillRect(0, 0, barWidth, 30, TFT_GREEN);
+
+                                                                                  // Optional: Draw percent text
+                                                                                  char buf[16];
+                                                                                  sprintf(buf, "%d%%", percent);
+                                                                                  progressBar.setTextDatum(CC_DATUM);
+                                                                                  progressBar.setTextSize(2);
+                                                                                  progressBar.setTextColor(TFT_BLACK);
+
+                                                                                  progressBar.drawString(buf, 150, 15); // Centered
+
+                                                                                  // Push to screen
+                                                                                  progressBar.pushSprite(10, 140); // Position on screen
+                                                                              });
+
+                                                        progressBar.drawString(buf, 150, 15); // Centered
+
+                                                        // Push to screen
+                                                        progressBar.pushSprite(10, 140); // Position on screen
+                                                    });
+
+                              progressBar.drawString(buf, 150, 15); // Centered
+
+                              // Push to screen
+                              progressBar.pushSprite(10, 140); // Position on screen
+                          });
+
+    ArduinoOTA.onEnd([]()
+                     {
+                         Serial.println("✅ OTA Update Completed");
+
+                         tft.fillScreen(TFT_BLACK);
+                         tft.setTextColor(TFT_GREEN, TFT_BLACK);
+                         tft.setFreeFont(&Orbitron_Light_32);
+                         tft.drawCentreString("Update Done!", 160, 10, 1);
+
+                         // Use smaller Orbitron font for info
+                         tft.setFreeFont(&Orbitron_Medium8pt7b);
+
+                         // 1️⃣ Free RAM (Heap)
+                         uint32_t freeHeap = ESP.getFreeHeap();
+                         uint32_t totalHeap = ESP.getHeapSize();
+                         float heapUsage = 100.0f * (1.0f - ((float)freeHeap / totalHeap));
+                         int heapUsedPercent = (int)heapUsage;
+
+                         String heapComment;
+                         uint16_t heapColor;
+
+                         if (heapUsedPercent < 60)
+                         {
+                             heapComment = "Memory status: Excellent";
+                             heapColor = TFT_GREEN;
+                         }
+                         else if (heapUsedPercent < 80)
+                         {
+                             heapComment = "Memory status: OK";
+                             heapColor = TFT_ORANGE;
+                         }
+                         else
+                         {
+                             heapComment = "Memory status: Low";
+                             heapColor = TFT_RED;
+                         }
+
+                         char buf[64];
+
+                         // Heap usage in kB — split into two lines
+                         float freeKB = freeHeap / 1024.0;
+                         float totalKB = totalHeap / 1024.0;
+                         sprintf(buf, "Free RAM: %.1f / %.1f kB", freeKB, totalKB);
+                         tft.setTextColor(TFT_CYAN, TFT_BLACK);
+                         tft.drawCentreString(buf, 160, 60, 1);
+
+                         sprintf(buf, "(%d%% used)", heapUsedPercent);
+                         tft.drawCentreString(buf, 160, 75, 1);
+
+                         tft.setTextColor(heapColor, TFT_BLACK);
+                         tft.drawCentreString(heapComment, 160, 92, 1);
+
+                         // 2️⃣ Sketch info in kB
+                         float usedSketchKB = ESP.getSketchSize() / 1024.0;
+                         float freeSketchKB = ESP.getFreeSketchSpace() / 1024.0;
+                         sprintf(buf, "Sketch: %.1f / %.1f kB", usedSketchKB, freeSketchKB);
+                         tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+                         tft.drawCentreString(buf, 160, 115, 1);
+
+                         // 3️⃣ Uptime
+                         sprintf(buf, "Uptime: %.1f sec", millis() / 1000.0);
+                         tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+                         tft.drawCentreString(buf, 160, 135, 1);
+
+                         // Final message
+                         tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                         tft.drawCentreString("73 from HB9IIU", 160, 200, 1);
+
+                         delay(10000); // Show for 8 seconds before reboot or resume
+                     });
+
     ArduinoOTA.onError([](ota_error_t error)
-                       { Serial.printf("Error[%u]: ", error); });
+                       {
+                           Serial.printf("❌ OTA Error[%u]: ", error);
+                           if (error == OTA_AUTH_ERROR)
+                               Serial.println("Auth Failed");
+                           else if (error == OTA_BEGIN_ERROR)
+                               Serial.println("Begin Failed");
+                           else if (error == OTA_CONNECT_ERROR)
+                               Serial.println("Connect Failed");
+                           else if (error == OTA_RECEIVE_ERROR)
+                               Serial.println("Receive Failed");
+                           else if (error == OTA_END_ERROR)
+                               Serial.println("End Failed");
+
+                           tft.fillScreen(TFT_BLACK);
+                           tft.setTextColor(TFT_RED, TFT_BLACK);
+                           tft.setFreeFont(&Orbitron_Light_32);
+                           tft.drawCentreString("❌ Update Failed", 160, 40, 1);
+
+                           switch (error)
+                           {
+                           case OTA_AUTH_ERROR:
+                               tft.drawCentreString("Auth Failed", 160, 90, 1);
+                               break;
+                           case OTA_BEGIN_ERROR:
+                               tft.drawCentreString("Begin Failed", 160, 90, 1);
+                               break;
+                           case OTA_CONNECT_ERROR:
+                               tft.drawCentreString("Connect Failed", 160, 90, 1);
+                               break;
+                           case OTA_RECEIVE_ERROR:
+                               tft.drawCentreString("Receive Failed", 160, 90, 1);
+                               break;
+                           case OTA_END_ERROR:
+                               tft.drawCentreString("End Failed", 160, 90, 1);
+                               break;
+                           default:
+                               tft.drawCentreString("Unknown Error", 160, 90, 1);
+                               break;
+                           }
+                           // 📻 Friendly sign-off
+                           tft.setTextColor(TFT_SKYBLUE, TFT_BLACK);
+                           tft.setFreeFont(&Orbitron_Medium8pt7b);
+                           tft.drawCentreString("73! from HB9IIU", 160, 200, 1); // Adjust Y to your screen
+
+                           delay(4000); // Let the user read the error
+                       });
+
     ArduinoOTA.begin();
     Serial.println("🚀 OTA Ready");
 
@@ -185,14 +382,14 @@ void setup()
     }
 
     // Start Web Server
-    server.on("/", handleRoot);                // Serve the HTML page
-    server.on("/save", HTTP_POST, handleSave); // Handle form submit
-                                               // Serve all static files (HTML, PNG, CSS, etc.)
-server.serveStatic("/images", SPIFFS, "/images"); // if you have images in /images/
-server.serveStatic("/fonts", SPIFFS, "/fonts");   // optional
-server.serveStatic("/logo1.png", SPIFFS, "/logo1.png");
-server.serveStatic("/logo2.png", SPIFFS, "/logo2.png");
-server.serveStatic("/logo3.png", SPIFFS, "/logo3.png");
+    server.on("/", handleRoot);                       // Serve the HTML page
+    server.on("/save", HTTP_POST, handleSave);        // Handle form submit
+                                                      // Serve all static files (HTML, PNG, CSS, etc.)
+    server.serveStatic("/images", SPIFFS, "/images"); // if you have images in /images/
+    server.serveStatic("/fonts", SPIFFS, "/fonts");   // optional
+    server.serveStatic("/logo1.png", SPIFFS, "/logo1.png");
+    server.serveStatic("/logo2.png", SPIFFS, "/logo2.png");
+    server.serveStatic("/logo3.png", SPIFFS, "/logo3.png");
 
     Serial.println("🌐 Web server started at http://" + WiFi.localIP().toString());
 
@@ -464,6 +661,9 @@ if (target == "doubleFrame") {
     drawOrredrawStaticElements();
 
     // Create a sprite for the Weather text
+    progressBar.setColorDepth(8);      // Use 8-bit color for efficiency
+    progressBar.createSprite(300, 30); // Width and height of the bar
+
     stext2.setColorDepth(8);
     stext2.createSprite(310, 30);      // Create a 310x20 sprite to accommodate the text width
     stext2.setTextColor(bannerColour); // White text

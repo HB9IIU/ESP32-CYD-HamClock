@@ -19,6 +19,7 @@ It displays:
 - 🖼️ A splash screen logo (loaded from SPIFFS)
 - 🔄 Auto-syncs time using NTP
 - 🧭 Your QTH location via coordinates for precise weather info
+- 🧠 **New: Web-based configuration UI!**
 
 Clean layout, large fonts, and dual clocks make it ideal for quick glances while operating.
 
@@ -26,14 +27,15 @@ Clean layout, large fonts, and dual clocks make it ideal for quick glances while
 
 ## ✨ Features
 
-| Feature                  | Description                                                                 |
-|--------------------------|-----------------------------------------------------------------------------|
-| 🕒 Dual Clocks            | Local time (top) and UTC (bottom) in 7-segment style fonts                  |
-| 🌐 NTP Time Sync         | Always accurate via `pool.ntp.org`                                          |
-| ☀️ Weather Data           | From OpenWeather API, updated every 5 minutes                              |
-| 📄 PNG Splash Screen      | Loads `logo1.png`, `logo2.png`, or `logo3.png` from SPIFFS on boot          |
-| 🖌️ Customizable Appearance | Colors, font styles, scroll speed, and labels via `config.h`                |
-| 🔁 Auto-Reconnect Wi-Fi   | Retries Wi-Fi and reboots after repeated failures                           |
+| Feature                   | Description                                                                 |
+|---------------------------|-----------------------------------------------------------------------------|
+| 🕒 Dual Clocks             | Local time (top) and UTC (bottom) in 7-segment style fonts                  |
+| 🌐 NTP Time Sync           | Always accurate via `pool.ntp.org`                                          |
+| ☀️ Weather Data            | From OpenWeather API, updated every 5 minutes                              |
+| 📄 PNG Splash Screen       | Loads `logo1.png`, `logo2.png`, or `logo3.png` from SPIFFS on boot          |
+| 🧑‍💻 Web Configurator (NEW!) | Change colors, labels, font style, banner speed, location — via webpage!     |
+| 🔁 Auto-Reconnect Wi-Fi    | Retries Wi-Fi and reboots after repeated failures                           |
+| 📦 OTA Updates (optional)  | Upload firmware **wirelessly** after first USB flash                        |
 
 ---
 
@@ -52,11 +54,53 @@ Clean layout, large fonts, and dual clocks make it ideal for quick glances while
 
 ---
 
+## 🚀 Flashing Instructions
+
+### 1️⃣ First Upload via USB Cable
+
+- Connect the ESP32 CYD via USB
+- Open `platformio.ini` and use this default:
+
+```ini
+upload_protocol = esptool
+```
+
+- Upload both firmware and SPIFFS:
+
+```bash
+pio run -t upload
+pio run -t uploadfs
+```
+
+---
+
+### 2️⃣ Enable OTA for Future Uploads
+
+Once the device is online and `hb9iiuhamclock.local` is reachable:
+
+- Edit `platformio.ini`:
+
+```ini
+# Uncomment below for OTA update
+upload_protocol = espota
+upload_port = hb9iiuhamclock.local
+```
+
+- Upload code wirelessly:
+
+```bash
+pio run -t upload
+```
+
+> ℹ️ SPIFFS uploads over OTA **are not supported** — for web UI changes, re-upload via USB.
+
+---
+
 ## ⚙️ Configuration
 
-All settings are in `config.h`.
+All defaults live in `config.h`, but **everything can now be changed via the built-in web interface**.
 
-Here's a template:
+### 🧾 Example `config.h` Template
 
 ```cpp
 #define WIFI_SSID      "YourNetwork"
@@ -82,3 +126,19 @@ Here's a template:
 
 #define START_UP_LOGO "logo1.png" // logo1.png / logo2.png / logo3.png
 #define ITALIC_CLOCK_FONTS false  // Use italic 7-segment fonts or not
+```
+
+---
+
+## 🧪 Tested With
+
+- ✅ ESP32 DevKitC and ESP32 CYD boards
+- ✅ PlatformIO Core 6.1+
+- ✅ OpenWeatherMap free API tier
+- ✅ Chrome/Firefox for web configuration
+
+---
+
+## 73! de HB9IIU
+
+Enjoy this shack companion — and if you're operating digital, **may the prop be with you!**
