@@ -62,7 +62,7 @@ String SSID = WIFI_SSID; // Wi-Fi credentials
 String WiFiPassword = WIFI_PASSWORD;
 String apiKey = WEATHER_API_KEY; // API Key
 
-int tOffset =  2; // e.g. 2 = CEST
+int tOffset = 2; // e.g. 2 = CEST
 
 // Create web server
 WebServer server(80); // HTTP server on port 80
@@ -1243,6 +1243,8 @@ void drawOrredrawStaticElements()
     if (doubleFrame)
     {
         tft.drawRoundRect(1, 1, 318, 85, 4, localFrameColour);
+        tft.drawRoundRect(2, 2, 316, 83, 4, localFrameColour);
+        tft.drawRoundRect(3, 3, 314, 81, 4, localFrameColour);
     }
 
     // 🟦 Local Time Label
@@ -1258,6 +1260,8 @@ void drawOrredrawStaticElements()
     if (doubleFrame)
     {
         tft.drawRoundRect(1, 106, 318, 85, 4, utcFrameColour);
+        tft.drawRoundRect(2, 107, 316, 83, 4, utcFrameColour);
+        tft.drawRoundRect(3, 108, 314, 81, 4, utcFrameColour);
     }
 
     // ⬜ UTC Label
