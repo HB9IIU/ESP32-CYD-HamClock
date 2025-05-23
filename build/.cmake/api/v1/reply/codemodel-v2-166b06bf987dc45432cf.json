@@ -1,0 +1,56 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "Project",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "Cpp20Tests::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-Cpp20Tests-Debug-31781ffa9a907bf621c1.json",
+					"name" : "Cpp20Tests",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/danielstaempfli/SynologyDrive/ZZ_GITHUB_NEW/ESP32-CYD-HamClock/build",
+		"source" : "/Users/danielstaempfli/SynologyDrive/ZZ_GITHUB_NEW/ESP32-CYD-HamClock/lib/ArduinoJson-7.x/extras/tests/Cpp20"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}
