@@ -1,3 +1,4 @@
+
 # 🌦️ ESP32 Weather & UTC Clock Display
 
 **Author:** HB9IIU  
@@ -19,8 +20,7 @@ It displays:
 - 🖼️ A splash screen logo (loaded from SPIFFS)
 - 🔄 Auto-syncs time using NTP
 - 🧭 Your QTH location via coordinates for precise weather info
-
-Clean layout, large fonts, and dual clocks make it ideal for quick glances while operating.
+- 🖥️ Configuration via built-in web interface
 
 ---
 
@@ -32,10 +32,9 @@ Clean layout, large fonts, and dual clocks make it ideal for quick glances while
 | 🌐 NTP Time Sync         | Always accurate via `pool.ntp.org`                                          |
 | ☀️ Weather Data           | From OpenWeather API, updated every 5 minutes                              |
 | 📄 PNG Splash Screen      | Loads `logo1.png`, `logo2.png`, or `logo3.png` from SPIFFS on boot          |
-| 🖌️ Customizable Appearance | Colors, font styles, scroll speed, and labels via onboard web interface     |
+| 🖌️ Configurable via Web UI | Colors, fonts, labels, coordinates, scroll speed — all from browser         |
 | 🔁 Auto-Reconnect Wi-Fi   | Retries Wi-Fi and reboots after repeated failures                           |
-| 🌐 Web Configurator       | Change all settings live: colors, text, banner speed, and more              |
-| 📲 OTA Updates            | Upload firmware wirelessly after first flash via USB                        |
+| 🔧 OTA Updates            | Update firmware and filesystem over the air (wireless)                      |
 
 ---
 
@@ -56,73 +55,105 @@ Clean layout, large fonts, and dual clocks make it ideal for quick glances while
 
 ## ⚙️ Configuration
 
-All static settings are in `config.h`. Here's a sample:
+Edit `config.h` before the first upload:
 
-```cpp
-// WiFi Credentials
-#define WIFI_SSID "your_wifi_ssid"
-#define WIFI_PASSWORD "your_wifi_password"
+```
+#define WIFI_SSID        "YourWiFi"
+#define WIFI_PASSWORD    "YourPassword"
 
-// OpenWeatherMap API Key
-#define WEATHER_API_KEY "your_openweather_key"
-#define WEATHER_API_URL "https://api.openweathermap.org/data/2.5/weather"
+#define WEATHER_API_KEY  "your_api_key_here"
+#define WEATHER_API_URL  "https://api.openweathermap.org/data/2.5/weather"
 
-// Location (Geneva, Switzerland)
-#define LATITUDE 46.2044
-#define LONGITUDE 6.1432
+#define LATITUDE         46.2044   // Geneva
+#define LONGITUDE        6.1432    // Geneva
 ```
 
 ---
 
-## 🔄 Initial Flash & Filesystem Upload
+## 🚀 Flashing for the First Time
 
-To get started:
-
-1. **Flash the firmware via USB cable**:
-   ```bash
-   pio run --target upload
+1. Connect your ESP32 CYD to your PC via USB.
+2. Upload the **firmware** via PlatformIO:
+   ```ini
+   upload_protocol = esptool
    ```
-
-2. **Upload the filesystem (SPIFFS)** — required to display the web interface and boot images:
+3. Also upload the **SPIFFS filesystem**:
    ```bash
    pio run --target uploadfs
    ```
 
-> 📁 The SPIFFS contains:
-> - HTML & JavaScript files for the configurator
-> - Boot logo PNG images (`logo1.png`, `logo2.png`, `logo3.png`)
-> - Settings stored in `settings.json`
+---
 
-3. Once flashed, the device hosts a **web interface** for configuration at:
-   ```
-   http://hb9iiuhamclock.local
-   ```
+## 🌐 Accessing the Web Interface
 
-4. ✅ After the first successful flash, you can **enable OTA updates** by editing `platformio.ini`:
-   ```ini
-   ; Uncomment for OTA updates
-   upload_protocol = espota
-   upload_port = hb9iiuhamclock.local
-   ```
+Once connected to Wi-Fi, the ESP32 will:
+
+- Sync time via NTP
+- Fetch weather using your coordinates and API key
+- Start a **web configuration portal**
+
+You can access it via:
+
+- **http://hb9iiuhamclock.local** (if mDNS is supported by your OS)
+- Or use the **IP shown in Serial Monitor** (e.g., `http://192.168.1.123`)
+
+From the web interface you can:
+
+- Adjust colors and fonts in real time
+- Change labels (e.g., “QTH Time”)
+- Set scroll speed and position
+- Switch startup logo
+- Save all settings to flash memory
 
 ---
 
-## 🧑‍💻 Customization via Web Interface
+## 🔄 OTA Updates (Over the Air)
 
-Visit your ESP32 on the network to customize:
-- Clock colors (digits, frame)
-- Labels (e.g., “QTH Time”)
-- Scroll speed
-- Boot image (PNG from SPIFFS)
-- Location coordinates (for weather)
-- Italic vs normal fonts
-- Save everything to flash memory
+Once the ESP32 is on your network, you can upload future updates wirelessly.
+
+### 1. Edit `platformio.ini`:
+
+Uncomment or add:
+
+```ini
+upload_protocol = espota
+upload_port = hb9iiuhamclock.local
+```
+
+> You can also replace `hb9iiuhamclock.local` with the IP address of the device.
+
+### 2. Upload Firmware
+
+```bash
+pio run --target upload
+```
+
+### 3. Upload Filesystem
+
+```bash
+pio run --target uploadfs
+```
+
+> ⚠️ OTA works best when no Serial Monitor is connected.
 
 ---
 
-## 🙌 Final Notes
+## 🤝 Credits
 
-This project is designed for **ease of use and ham shack aesthetics**.  
-Big digits, readable fonts, OTA updates, and a slick web interface — everything you need in one elegant display.
+Thanks to Marco T77PM for the original idea and testing.  
+Developed by HB9IIU with love from Switzerland 🇨🇭
 
-Enjoy & 73 de **HB9IIU** 🇨🇭
+---
+
+## 📸 Screenshots
+
+![example1](docs/screenshot1.png)  
+![example2](docs/screenshot2.png)
+
+---
+
+## 📬 Feedback
+
+Got improvements or bug reports? Open a GitHub issue or reach out via ham radio!
+
+**73 de HB9IIU**
