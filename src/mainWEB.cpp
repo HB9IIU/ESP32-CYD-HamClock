@@ -332,7 +332,7 @@ void setup()
                            else if (error == OTA_RECEIVE_ERROR)
                                Serial.println("Receive Failed");
                            else if (error == OTA_END_ERROR)
-                               Serial.println("End Failed");
+                               Serial.println("Failed");
 
                            tft.fillScreen(TFT_BLACK);
                            tft.setTextColor(TFT_RED, TFT_BLACK);
@@ -512,10 +512,10 @@ if (target == "doubleFrame") {
     String value = doc["value"];
 
     if (target == "localTimeLabel") {
-        localTimeLabel = value;
+ localTimeLabel = "  " + value + "  ";
         Serial.printf("🕒 Updated localTimeLabel: %s\n", localTimeLabel.c_str());
     } else if (target == "utcTimeLabel") {
-        utcTimeLabel = value;
+        utcTimeLabel = "  " + value + "  ";;
         Serial.printf("🌐 Updated utcTimeLabel: %s\n", utcTimeLabel.c_str());
     } else {
         server.send(400, "text/plain", "Unknown target");
