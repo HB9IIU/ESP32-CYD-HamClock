@@ -115,28 +115,6 @@ You can upload your own 320x240 PNG file as the boot splash screen:
 
 ---
 
-## 🧪 Debug Tools
-
-| Endpoint         | Purpose                             |
-|------------------|-------------------------------------|
-| `/ping`          | Test connection                     |
-| `/config`        | Get current settings in JSON        |
-| `/saveall`       | Save all current settings and reboot|
-| `/setcolor`      | Change digit/frame/banner colors    |
-| `/setlabel`      | Update local/UTC labels             |
-| `/setitalic`     | Toggle italic font on/off           |
-| `/setbootimage`  | Select splash image to show at boot |
-| `/setposition`   | Update latitude and longitude       |
-
----
-
-## 📸 Screenshots
-
-![screenshot1](docs/screenshot1.png)  
-![screenshot2](docs/screenshot2.png)
-
----
-
 ## 🙏 Credits
 
 Thanks to Marco T77PM for the testing and inspiration.  
