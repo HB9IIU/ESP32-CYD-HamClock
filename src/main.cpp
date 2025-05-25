@@ -7,28 +7,6 @@
  * The program includes a PNG logo display and uses custom fonts for the time display.
  * It connects to Wi-Fi and the NTP server for accurate time synchronization.
  *
- * Color List (TFT_eSPI):
- * --------------------------------
- * TFT_BLACK      - Black
- * TFT_WHITE      - White
- * TFT_BLUE       - Blue
- * TFT_RED        - Red
- * TFT_GREEN      - Green
- * TFT_CYAN       - Cyan
- * TFT_MAGENTA    - Magenta
- * TFT_YELLOW     - Yellow
- * TFT_ORANGE     - Orange
- * TFT_LIGHTGREY  - Light Grey
- * TFT_DARKGREY   - Dark Grey
- * TFT_BROWN      - Brown
- * TFT_PINK       - Pink
- * TFT_PURPLE     - Purple
- * TFT_GREY       - Grey
- * TFT_DARKGREEN  - Dark Green
- * TFT_LIGHTBLUE  - Light Blue
- * TFT_LIGHTGREEN - Light Green
- * TFT_LIGHTCYAN  - Light Cyan
- * TFT_LIGHTMAGENTA - Light Magenta
  *
  * Notes:
  * This code is based on the TFT_eSPI library and uses the NTPClient and HTTPClient libraries for fetching time
@@ -56,6 +34,22 @@
 #include <FS.h>
 #include <SPIFFS.h>
 #include <WebServer.h>
+#include <XPT2046_Touchscreen.h>
+
+// Touchscreen pins
+#define XPT2046_IRQ 36  // T_IRQ
+#define XPT2046_MOSI 32 // T_DIN
+#define XPT2046_MISO 39 // T_OUT
+#define XPT2046_CLK 25  // T_CLK
+#define XPT2046_CS 33   // T_CS
+
+SPIClass touchscreenSPI = SPIClass(VSPI);
+XPT2046_Touchscreen touchscreen(XPT2046_CS, XPT2046_IRQ);
+// for screensave5
+static unsigned long lastDotUpdate = 0;
+static unsigned long nextDotDelay = random(1000, 2001); // random 1–2 seconds
+unsigned long currentMillis = millis();
+unsigned long lastActivity = 0; // Last time user interacted
 
 // Global variables for configuration
 String SSID = WIFI_SSID; // Wi-Fi credentials
@@ -81,6 +75,8 @@ String localTimeLabel = "  QTH Time  ";
 String utcTimeLabel = "  UTC Time  ";
 String startupLogo = "logo1.png";
 bool italicClockFonts = false;
+unsigned long screenSaverTimeout = 1000 * 60 * 60; // 60 minute
+
 volatile bool refreshDigits = false;
 const String weatherAPI = "https://api.openweathermap.org/data/2.5/weather"; // OpenWeather API endpoint
 
@@ -98,9 +94,14 @@ TFT_eSPI tft = TFT_eSPI();                   // Create TFT display object
 TFT_eSprite stext2 = TFT_eSprite(&tft);      // Sprite object for "Hello World" text
 TFT_eSprite progressBar = TFT_eSprite(&tft); // Create sprite for OTA progress bar
 
+TFT_eSprite labelSprite = TFT_eSprite(&tft); // Global sprite
+// Bouncing text state
+int ballX = 50, ballY = 50;
+int dx = 1, dy = 1;
+
 // Scrolling Text
 int textX;                                                                                      // Variable for text position (to start at the rightmost side)
-String scrollText = "Sorry, No Weather Info At This Moment!!! Have you enterred your API key?"; // Text to scroll
+String scrollText = "Sorry, No Weather Info At This Moment!!!            Have you enterred your API key?"; // Text to scroll
 // Timing variables
 unsigned long previousMillisForScroller = 0; // Store last time the action was performed
 
@@ -122,6 +123,8 @@ void loadSettings();
 void handleRoot();
 void handleSave();
 void drawOrredrawStaticElements();
+void mountAndListSPIFFS(uint8_t levels = 255, bool listContent = true);
+void handlePNGUpload();
 
 // PNG Decoder Setup
 PNG png;
@@ -140,12 +143,19 @@ void setup()
     // Start Serial Monitor
     Serial.begin(115200);
     Serial.println("Starting setup...");
+
     // 🔧 Mount SPIFFS
-    if (!SPIFFS.begin(true))
-    {
-        Serial.println("❌ SPIFFS mount failed!");
-        return;
-    }
+    mountAndListSPIFFS();
+
+    // Start the SPI for the touchscreen and init the touchscreen
+    touchscreenSPI.begin(XPT2046_CLK, XPT2046_MISO, XPT2046_MOSI, XPT2046_CS);
+    touchscreen.begin(touchscreenSPI);
+    labelSprite.setColorDepth(8);
+    labelSprite.createSprite(120, 30); // Size depends on font & text
+    labelSprite.setTextColor(TFT_YELLOW, TFT_BLACK);
+    labelSprite.setTextDatum(MC_DATUM);
+    labelSprite.setFreeFont(&FreeSansBold12pt7b);
+
     // Load saved settings first
     loadSettings();
     // saveSettings();
@@ -163,7 +173,7 @@ void setup()
     connectWiFi();
 
     // Start OTA
-    ArduinoOTA.setHostname("hb9iiuhamclock"); // 🧠 Make sure OTA uses the same hostname
+    ArduinoOTA.setHostname("hamclock"); // 🧠 Make sure OTA uses the same hostname
 
     ArduinoOTA.onStart([]()
                        {
@@ -175,7 +185,7 @@ void setup()
     tft.fillScreen(TFT_BLACK);
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.setFreeFont(&Orbitron_Light_32);
-    tft.drawCentreString("Receiving New", 160, 10, 1); 
+    tft.drawCentreString("Receiving new", 160, 10, 1); 
     tft.setTextColor(TFT_RED, TFT_BLACK);
     tft.drawCentreString(type, 160, 70, 1); });
 
@@ -295,29 +305,29 @@ void setup()
                          tft.setTextColor(TFT_CYAN, TFT_BLACK);
                          tft.drawCentreString(buf, 160, 60, 1);
 
-                         sprintf(buf, "(%d%% used)", heapUsedPercent);
-                         tft.drawCentreString(buf, 160, 75, 1);
+                         sprintf(buf, "%d%% used", heapUsedPercent);
+                         tft.drawCentreString(buf, 160, 80, 1);
 
                          tft.setTextColor(heapColor, TFT_BLACK);
-                         tft.drawCentreString(heapComment, 160, 92, 1);
+                         tft.drawCentreString(heapComment, 160, 107, 1);
 
                          // 2️⃣ Sketch info in kB
                          float usedSketchKB = ESP.getSketchSize() / 1024.0;
                          float freeSketchKB = ESP.getFreeSketchSpace() / 1024.0;
                          sprintf(buf, "Sketch: %.1f / %.1f kB", usedSketchKB, freeSketchKB);
                          tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-                         tft.drawCentreString(buf, 160, 115, 1);
+                         tft.drawCentreString(buf, 160, 135, 1);
 
                          // 3️⃣ Uptime
                          sprintf(buf, "Uptime: %.1f sec", millis() / 1000.0);
                          tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-                         tft.drawCentreString(buf, 160, 135, 1);
+                         tft.drawCentreString(buf, 160, 165, 1);
 
                          // Final message
                          tft.setTextColor(TFT_WHITE, TFT_BLACK);
                          tft.drawCentreString("73 from HB9IIU", 160, 200, 1);
 
-                         delay(7000); // Show for 8 seconds before reboot or resume
+                         delay(4000); // Show for 8 seconds before reboot or resume
                      });
 
     ArduinoOTA.onError([](ota_error_t error)
@@ -372,27 +382,26 @@ void setup()
     Serial.println("🚀 OTA Ready");
 
     // Start mDNS AFTER OTA
-    if (!MDNS.begin("hb9iiuhamclock"))
+    if (!MDNS.begin("hamclock"))
     {
         Serial.println("⚠️ Failed to start mDNS responder!");
     }
     else
     {
-        Serial.println("🌍 mDNS started successfully. You can access via http://hb9iiuhamclock.local");
+        Serial.println("🌍 mDNS started successfully. You can access via http://hamclock.local");
     }
 
     // Start Web Server
-    server.on("/", handleRoot);                       // Serve the HTML page
-    server.on("/save", HTTP_POST, handleSave);        // Handle form submit
-                                                      // Serve all static files (HTML, PNG, CSS, etc.)
-    server.serveStatic("/images", SPIFFS, "/images"); // if you have images in /images/
-    server.serveStatic("/fonts", SPIFFS, "/fonts");   // optional
+    server.on("/", handleRoot);                     // Serve the HTML page
+                                                    // Serve all static files (HTML, PNG, CSS, etc.)
+    server.serveStatic("/fonts", SPIFFS, "/fonts"); // optional
     server.serveStatic("/logo1.png", SPIFFS, "/logo1.png");
     server.serveStatic("/logo2.png", SPIFFS, "/logo2.png");
     server.serveStatic("/logo3.png", SPIFFS, "/logo3.png");
-
-    Serial.println("🌐 Web server started at http://" + WiFi.localIP().toString());
-
+    server.serveStatic("/logo4.png", SPIFFS, "/logo4.png");
+    server.serveStatic("/logo4.png", SPIFFS, "/logo4.png");
+       server.serveStatic("/github.png", SPIFFS, "/github.png");
+    server.serveStatic("/favicon.ico", SPIFFS, "/favicon.ico");
     server.on("/config", HTTP_GET, []()
               {
   StaticJsonDocument<1024> doc;
@@ -410,6 +419,8 @@ void setup()
   doc["utcTimeLabel"] = utcTimeLabel;
   doc["startupLogo"] = startupLogo;
   doc["italicClockFonts"] = italicClockFonts;
+doc["screenSaverTimeout"] = screenSaverTimeout / 60000;  // convert ms → minutes
+
 
   String response;
   serializeJson(doc, response);
@@ -418,8 +429,7 @@ void setup()
     server.on("/scrolltext", []()
               { server.send(200, "text/plain", scrollText); });
 
-    server.on("/setcolor", HTTP_POST, []()
-              {
+    server.on("/setcolor", HTTP_POST, []() {
     if (!server.hasArg("plain")) {
         server.send(400, "text/plain", "Missing body");
         return;
@@ -427,50 +437,60 @@ void setup()
 
     StaticJsonDocument<256> doc;
     DeserializationError error = deserializeJson(doc, server.arg("plain"));
-
     if (error) {
         server.send(400, "text/plain", "JSON parse error");
         return;
     }
 
     String target = doc["target"];
-    
-if (target == "doubleFrame") {
-    // Invert the received value: if thin is true, then doubleFrame should be false
-    bool thinBorder = doc["value"];
-    doubleFrame = !thinBorder;
-    Serial.printf("🪟 doubleFrame set to: %s (thinBorder: %s)\n", doubleFrame ? "true" : "false", thinBorder ? "true" : "false");
-    drawOrredrawStaticElements();
-    server.send(200, "text/plain", "OK");
-    return;
-}
 
+    // ✅ Handle doubleFrame checkbox
+    if (target == "doubleFrame") {
+        bool thinBorder = doc["value"];
+        doubleFrame = !thinBorder; // Inverse logic
+        Serial.printf("🪟 doubleFrame set to: %s (thinBorder: %s)\n", doubleFrame ? "true" : "false", thinBorder ? "true" : "false");
+        saveSettings();
+        drawOrredrawStaticElements();
+        server.send(200, "text/plain", "OK");
+        return;
+    }
+
+    // ✅ All other color-based updates
     uint16_t color = doc["color"];
 
     if (target == "localTimeDigits") {
         localTimeColour = color;
-        Serial.printf("🎨 localTimeColour set to 0x%04X\n", localTimeColour);
+        Serial.printf("🎨 localTimeDigits set to: 0x%04X\n", color);
     } else if (target == "localTimeFrame") {
         localFrameColour = color;
-        Serial.printf("🖼️ localFrameColour set to 0x%04X\n", localFrameColour);
+        Serial.printf("🖼️ localTimeFrame set to: 0x%04X\n", color);
     } else if (target == "utcTimeDigits") {
         utcTimeColour = color;
-        Serial.printf("🎨 utcTimeColour set to 0x%04X\n", utcTimeColour);
+        Serial.printf("🎨 utcTimeDigits set to: 0x%04X\n", color);
     } else if (target == "utcTimeFrame") {
         utcFrameColour = color;
-        Serial.printf("🖼️ utcFrameColour set to 0x%04X\n", utcFrameColour);
+        Serial.printf("🖼️ utcTimeFrame set to: 0x%04X\n", color);
     } else if (target == "weatherBannerText") {
         bannerColour = color;
-        Serial.printf("🟩 bannerColour set to 0x%04X\n", bannerColour);
+        Serial.printf("🟩 bannerColour set to: 0x%04X\n", color);
     } else {
+        Serial.printf("⚠️ Unknown target: %s\n", target.c_str());
         server.send(400, "text/plain", "Unknown target");
         return;
     }
 
+    // 💾 Save and redraw for all standard color updates
+    saveSettings();
     drawOrredrawStaticElements();
     refreshDigits = true;
+    server.send(200, "text/plain", "OK");
+});
 
-    server.send(200, "text/plain", "OK"); });
+
+
+
+
+
 
     server.on("/setspeed", HTTP_POST, []()
               {
@@ -588,10 +608,63 @@ if (target == "doubleFrame") {
 
     server.send(200, "text/plain", "OK"); });
 
+#include <ArduinoJson.h>
+
+#include <ArduinoJson.h>
+
     server.on("/saveall", HTTP_POST, []()
               {
+    if (!server.hasArg("plain")) {
+        server.send(400, "text/plain", "❌ Missing JSON body");
+        Serial.println("❌ No JSON payload received!");
+        return;
+    }
+
+    String json = server.arg("plain");
+    Serial.println("\n📨 Received JSON from webpage:");
+    Serial.println(json);
+
+    StaticJsonDocument<1024> doc;
+    DeserializationError error = deserializeJson(doc, json);
+
+    if (error) {
+        Serial.print("❌ JSON parse error: ");
+        Serial.println(error.c_str());
+        server.send(400, "text/plain", "Invalid JSON");
+        return;
+    }
+
+    // 🔧 Apply settings directly to global variables (not config struct!)
+    latitude             = doc["latitude"] | latitude;
+    longitude            = doc["longitude"] | longitude;
+    localTimeLabel       = doc["localTimeLabel"] | localTimeLabel;
+    utcTimeLabel         = doc["utcTimeLabel"] | utcTimeLabel;
+    italicClockFonts     = doc["italicClockFonts"] | italicClockFonts;
+    doubleFrame          = doc["doubleFrame"] | doubleFrame;
+    bannerSpeed          = doc["bannerSpeed"] | bannerSpeed;
+    screenSaverTimeout   = doc["screenSaverTimeout"] | screenSaverTimeout;
+
+    // 📋 Debug printout of applied values
+    Serial.println("📋 Parsed and applied config:");
+    Serial.println("──────────────────────────────────────────────");
+    Serial.printf("📍 Latitude             : %.6f\n", latitude);
+    Serial.printf("📍 Longitude            : %.6f\n", longitude);
+    Serial.printf("🕒 Local Time Label     : %s\n", localTimeLabel.c_str());
+    Serial.printf("🕒 UTC Time Label       : %s\n", utcTimeLabel.c_str());
+    Serial.printf("✍️  Italic Fonts         : %s\n", italicClockFonts ? "true" : "false");
+    Serial.printf("🖼️  Double Frame         : %s\n", doubleFrame ? "true" : "false");
+    Serial.printf("🏃 Banner Speed         : %d\n", bannerSpeed);
+    Serial.printf("💤 ScreenSaver Timeout  : %lu ms (%.2f min)\n",
+                  screenSaverTimeout,
+                  screenSaverTimeout / 60000.0);
+    Serial.println("──────────────────────────────────────────────");
+
+    // 💾 Save settings to SPIFFS (your version will do the actual work)
     saveSettings();
-    server.send(200, "text/plain", "💾 Settings saved to flash"); });
+    Serial.println("✅ Settings saved to flash.");
+
+    server.send(200, "text/plain", "💾 Settings saved to flash");
+    esp_restart(); });
 
     server.on("/setbootimage", HTTP_POST, []()
               {
@@ -617,10 +690,10 @@ if (target == "doubleFrame") {
 
                   startupLogo = doc["bootImageId"].as<String>();
                   Serial.printf("🖼️ Boot logo updated to: %s\n", startupLogo.c_str());
+                  saveSettings(); // 💾 Persist the change
 
                   server.send(200, "text/plain", "Boot logo saved");
-                  saveSettings(); // 💾 Persist the change
-              });
+                esp_restart(); });
 
     server.on("/setbootimage", HTTP_POST, []()
               {
@@ -647,6 +720,17 @@ if (target == "doubleFrame") {
     saveSettings(); // 💾 Persist the change
 
     server.send(200, "text/plain", "Boot logo saved"); });
+
+    server.on("/ping", HTTP_GET, []()
+              { server.send(200, "text/plain", "pong"); });
+
+    server.on("/scrolltext", HTTP_GET, []()
+              { server.send(200, "text/plain", scrollText); });
+    server.on("/uploadpng", HTTP_POST, []()
+              {
+                  // ✅ no early response here
+              },
+              handlePNGUpload);
 
     server.begin();
 
@@ -678,75 +762,100 @@ if (target == "doubleFrame") {
 
 void loop()
 {
+    // 🔄 Handle OTA updates and incoming web requests
     ArduinoOTA.handle();
-    server.handleClient(); // ⬅️ Serve HTTP requests
-    // Calculate time elapsed since last weather data fetch
+    server.handleClient();
+
     unsigned long currentMillis = millis();
-    static unsigned long previousMillis = 0; // Store the last time the weather data was fetched
+    static unsigned long previousMillis = 0;
+    static unsigned long previousMillisForScroller = 0;
+    static unsigned long lastDotUpdate = 0;
+    static bool screenSaver = false;
 
-    // Update time every second
-    timeClient.update();
-
-    // Get Local Time by adding tOffset to UTC time
-    long localEpoch = timeClient.getEpochTime() + (tOffset * 3600); // Add offset (in seconds)
-    String localTime = formatLocalTime(localEpoch);                 // Format the local time
-
-    // Get UTC Time
-    String utcTime = timeClient.getFormattedTime();
-
-    // Display Local and UTC Time with different y positions
-    tft.setTextColor(TFT_WHITE); // Set text color to white
-    if (italicClockFonts)
+    // ⏳ Check for inactivity → Enable screensaver
+    if (!screenSaver && currentMillis - lastActivity > screenSaverTimeout)
     {
-        tft.setFreeFont(&digital_7_monoitalic42pt7b);
+        screenSaver = true;
+        Serial.println("⏳ Inactivity detected — entering screensaver.");
     }
-    else
+
+    // 💤 Screensaver Mode
+    if (screenSaver)
     {
-        tft.setFreeFont(&digital_7__mono_42pt7b);
-    }
-    // Corrected y positions for both clocks
-    displayTime(8, 5, localTime, previousLocalTime, 0, localTimeColour); // Display local time at y = 5
+        // 🌈 Refresh random pixel animation every 1 second
+        if (currentMillis - lastDotUpdate >= 1000)
+        {
+            tft.fillScreen(TFT_BLACK);
 
-    displayTime(10, 107, utcTime, previousUTCtime, 0, utcTimeColour); // Display UTC time at y = 106
+            for (int i = 0; i < 200; i++)
+            {
+                int x = random(0, 320);
+                int y = random(0, 240);
+                uint16_t color = tft.color565(random(256), random(256), random(256));
+                tft.drawPixel(x, y, color);
+            }
 
-    // Fetch Weather Data once every 5 minutes
-    if (currentMillis - previousMillis >= 1000 * 60 * 5)
-    {
-        previousMillis = currentMillis; // Save the current time
-        fetchWeatherData();
-    }
-    // Check if the interval has passed
-    if (currentMillis - previousMillisForScroller >= bannerSpeed)
-    {
-        // Save the last time the action was performed
-        previousMillisForScroller = currentMillis;
-
-        // Clear the sprite
-        stext2.fillSprite(TFT_BLACK); // Fill sprite with background color
-
-        // Draw the text inside the sprite at the specified position
-        stext2.setTextColor(bannerColour);
-        stext2.drawString(scrollText, textX, 0); // Draw text in sprite at position `textX`
-
-        // Scroll the text by shifting the position to the left
-        textX -= 1; // Move text left by 1 pixel
-
-        // Reset position when text has scrolled off the screen
-        if (textX < -stext2.textWidth(scrollText))
-        {                           // Text has completely scrolled off screen
-            textX = stext2.width(); // Reset position to the far right
+            lastDotUpdate = currentMillis;
         }
 
-        // Push the sprite onto the TFT at the specified coordinates
-        stext2.pushSprite(5, 205); // Push the sprite to the screen at position (5, 220)
+        // ✋ Exit screensaver on touchscreen interaction
+        if (touchscreen.tirqTouched() && touchscreen.touched())
+        {
+            TS_Point p = touchscreen.getPoint();
+            if (p.z > 200)
+            {
+                Serial.println("🖐 Touch detected — exiting screensaver.");
+                screenSaver = false;
+                tft.fillScreen(TFT_BLACK);
+                drawOrredrawStaticElements(); // 🖼️ Redraw UI frames
+                lastActivity = currentMillis; // 🔄 Reset inactivity timer
+            }
+        }
+    }
+    // 📺 Normal Mode (Active Display)
+    else
+    {
+        // 🕒 Update time display
+        timeClient.update();
+        long localEpoch = timeClient.getEpochTime() + (tOffset * 3600);
+        String localTime = formatLocalTime(localEpoch);
+        String utcTime = timeClient.getFormattedTime();
+
+        tft.setTextColor(TFT_WHITE);
+        tft.setFreeFont(italicClockFonts ? &digital_7_monoitalic42pt7b : &digital_7__mono_42pt7b);
+        displayTime(8, 5, localTime, previousLocalTime, 0, localTimeColour);
+        displayTime(10, 107, utcTime, previousUTCtime, 0, utcTimeColour);
+
+        // 🌤️ Refresh weather data every 5 minutes
+        if (currentMillis - previousMillis >= 1000UL * 60 * 5)
+        {
+            previousMillis = currentMillis;
+            fetchWeatherData();
+        }
+
+        // 📰 Scroll banner text
+        if (currentMillis - previousMillisForScroller >= bannerSpeed)
+        {
+            previousMillisForScroller = currentMillis;
+            stext2.fillSprite(TFT_BLACK);
+            stext2.setTextColor(bannerColour);
+            stext2.drawString(scrollText, textX, 0);
+            textX -= 1;
+            if (textX < -stext2.textWidth(scrollText))
+                textX = stext2.width();
+            stext2.pushSprite(5, 205);
+        }
+
+        // 🖐 Optional: Add button or additional activity tracking here
     }
 }
 
 // 📶 Function to connect to Wi-Fi and initialize mDNS
+
 void connectWiFi()
 {
     // Set a custom hostname BEFORE connecting to Wi-Fi
-    WiFi.setHostname("hb9iiuhamclock");
+    WiFi.setHostname("hamclock");
     String hostname = WiFi.getHostname();
 
     Serial.println("🔌 Connecting to Wi-Fi...");
@@ -954,7 +1063,7 @@ void fetchWeatherData()
                      "Sunrise: " + sunriseTime + "     " +
                      "Sunset: " + sunsetTime;
 
-        stext2.drawString(scrollText, textX, 0); // Draw text in sprite at position `textX`
+        stext2.drawString(scrollText, textX, 0); // Draw text in sprite at position textX
         textX = stext2.width();
         Serial.println(scrollText);
     }
@@ -962,7 +1071,7 @@ void fetchWeatherData()
     {
         Serial.print("Error fetching weather data, HTTP code: ");
         Serial.println(httpCode);
-        scrollText = "Sorry, No Weather Info At This Moment!!!"; // Text to scroll
+scrollText = "Sorry, No Weather Info At This Moment!!!            Have you enterred your API key?"; // Text to scroll
         textX = stext2.width();
     }
 
@@ -1097,6 +1206,7 @@ String convertTimestampToDate(long timestamp)
 // Load settings from SPIFFS JSON
 void loadSettings()
 {
+
     fs::File file = SPIFFS.open("/settings.json", "r"); // ✅ OPEN IN READ MODE
     if (!file)
     {
@@ -1130,7 +1240,9 @@ void loadSettings()
     utcTimeLabel = doc["utcTimeLabel"] | utcTimeLabel;
     startupLogo = doc["startupLogo"] | startupLogo;
     italicClockFonts = doc["italicClockFonts"] | italicClockFonts;
-
+    screenSaverTimeout = doc["screenSaverTimeout"] | screenSaverTimeout;
+    Serial.println();
+    Serial.println("-----------------------------------------------------------------");
     Serial.println("✅ Settings loaded from SPIFFS:");
     Serial.printf("📍 latitude: %.6f\n", latitude);
     Serial.printf("📍 longitude: %.6f\n", longitude);
@@ -1145,10 +1257,11 @@ void loadSettings()
     Serial.printf("🌍 utcTimeLabel: %s\n", utcTimeLabel.c_str());
     Serial.printf("🖼️ startupLogo: %s\n", startupLogo.c_str());
     Serial.printf("🔤 italicClockFonts: %s\n", italicClockFonts ? "true" : "false");
+    Serial.printf("🕓 screenSaverTimeout: %lu ms\n", screenSaverTimeout);
+    Serial.println("-----------------------------------------------------------------");
 }
 
 // Save settings to SPIFFS
-
 void saveSettings()
 {
     StaticJsonDocument<1024> doc;
@@ -1165,8 +1278,9 @@ void saveSettings()
     doc["utcTimeLabel"] = utcTimeLabel;
     doc["startupLogo"] = startupLogo;
     doc["italicClockFonts"] = italicClockFonts;
+    doc["screenSaverTimeout"] = screenSaverTimeout;
 
-    fs::File file = SPIFFS.open("/settings.json", "w"); // ✅ This line is fixed
+    fs::File file = SPIFFS.open("/settings.json", "w");
 
     if (!file)
     {
@@ -1176,8 +1290,31 @@ void saveSettings()
 
     serializeJsonPretty(doc, file);
     file.close();
-    Serial.println("💾 Settings saved to SPIFFS");
-    esp_restart();
+
+    // ✅ Nicely formatted output
+    Serial.println("");
+    Serial.println(F("────────────────────────────────────────"));
+
+    Serial.println("💾 Saving settings to SPIFFS:");
+    Serial.println(F("────────────────────────────────────────"));
+    Serial.printf("🌍 Latitude           : %f\n", latitude);
+    Serial.printf("🌍 Longitude          : %f\n", longitude);
+    Serial.printf("🕒 Local Time Color   : 0x%04X\n", localTimeColour);
+    Serial.printf("🕒 UTC Time Color     : 0x%04X\n", utcTimeColour);
+    Serial.printf("🖼️  Double Frame      : %s\n", doubleFrame ? "true" : "false");
+    Serial.printf("🟩 Local Frame Color  : 0x%04X\n", localFrameColour);
+    Serial.printf("🟦 UTC Frame Color    : 0x%04X\n", utcFrameColour);
+    Serial.printf("📜 Banner Color       : 0x%04X\n", bannerColour);
+    Serial.printf("⚡ Banner Speed       : %d\n", bannerSpeed);
+    Serial.printf("🔤 Local Time Label   : %s\n", localTimeLabel.c_str());
+    Serial.printf("🔤 UTC Time Label     : %s\n", utcTimeLabel.c_str());
+    Serial.printf("🖼️  Startup Logo      : %s\n", startupLogo.c_str());
+    Serial.printf("✏️  Italic Fonts      : %s\n", italicClockFonts ? "true" : "false");
+    Serial.printf("😴 Screensaver (ms)   : %lu\n", screenSaverTimeout);
+    Serial.println(F("────────────────────────────────────────"));
+
+    Serial.println("✅ Settings saved to SPIFFS and restarting...");
+    Serial.println("");
 }
 
 // Serve index.html from SPIFFS
@@ -1266,4 +1403,113 @@ void drawOrredrawStaticElements()
 
     // ⬜ UTC Label
     tft.drawCentreString(utcTimeLabel, 160, 76 + 105, 1);
+}
+
+void mountAndListSPIFFS(uint8_t levels, bool listContent)
+{
+    Serial.println();
+    if (!SPIFFS.begin(true))
+    {
+        Serial.println("\n❌ Failed to mount SPIFFS.");
+        return;
+    }
+    Serial.println("\n✅ SPIFFS mounted successfully!");
+
+    if (!listContent)
+        return;
+
+    Serial.println("📂 Listing SPIFFS content:");
+    fs::File root = SPIFFS.open("/");
+    if (!root || !root.isDirectory())
+    {
+        Serial.println("❌ Failed to open root directory or not a directory.");
+        return;
+    }
+
+    fs::File file = root.openNextFile();
+    while (file)
+    {
+        if (file.isDirectory())
+        {
+            Serial.print("  📁 DIR : ");
+            Serial.println(file.name());
+            if (levels)
+            {
+                String path = String("/") + file.name();
+                mountAndListSPIFFS(levels - 1, true); // Recursive listing
+            }
+        }
+        else
+        {
+            Serial.print("  📄 FILE: ");
+            Serial.print(file.name());
+            Serial.print("\tSIZE: ");
+            Serial.println(file.size());
+        }
+        file = root.openNextFile();
+    }
+
+    // Calculate and print free space information
+    size_t total = SPIFFS.totalBytes();
+    size_t used = SPIFFS.usedBytes();
+    size_t free = total - used;
+    float percentFree = ((float)free / total) * 100.0;
+
+    Serial.println();
+    Serial.println("📊 SPIFFS Usage Info:");
+    Serial.printf("   📦 Total: %u bytes\n", total);
+    Serial.printf("   📂 Used : %u bytes\n", used);
+    Serial.printf("   📭 Free : %u bytes (%.2f%%)\n", free, percentFree);
+    Serial.println();
+}
+
+void handlePNGUpload()
+{
+    HTTPUpload &upload = server.upload();
+
+    if (upload.status == UPLOAD_FILE_START)
+    {
+        Serial.printf("📁 Uploading PNG: %s\n", upload.filename.c_str());
+
+        // 🖥️ Blank screen and show "Receiving" + "New" + "Splash Screen" on 3 lines
+        tft.fillScreen(TFT_BLACK);
+        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+        tft.setFreeFont(&Orbitron_Light_32);
+        tft.drawCentreString("Receiving", 160, 10, 1);
+
+        tft.setTextColor(TFT_CYAN, TFT_BLACK);
+        tft.drawCentreString("New", 160, 60, 1);
+        tft.drawCentreString("Splash Screen", 160, 110, 1);
+
+        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+        tft.setFreeFont(&Orbitron_Medium8pt7b);
+        tft.drawCentreString("Please wait...", 160, 170, 1);
+
+        fs::File file = SPIFFS.open("/logo4.png", FILE_WRITE);
+        if (!file)
+        {
+            Serial.println("❌ Failed to open file for writing");
+            return;
+        }
+        file.close();
+    }
+    else if (upload.status == UPLOAD_FILE_WRITE)
+    {
+        fs::File file = SPIFFS.open("/logo4.png", FILE_APPEND);
+        if (file)
+        {
+            file.write(upload.buf, upload.currentSize);
+            file.close();
+        }
+    }
+    else if (upload.status == UPLOAD_FILE_END)
+    {
+        Serial.printf("✅ Upload complete: %s (%d bytes)\n", upload.filename.c_str(), upload.totalSize);
+        server.send(200, "text/plain", "✅ PNG upload complete. Will be used at next boot.");
+        startupLogo = "logo4.png";
+        displayPNGfromSPIFFS("logo4.png", 3000);
+        saveSettings();
+        tft.fillScreen(TFT_BLACK);
+        drawOrredrawStaticElements();
+    }
 }
