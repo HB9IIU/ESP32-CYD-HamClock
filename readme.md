@@ -109,7 +109,6 @@ pio run --target uploadfs
 
 You can upload your own 320x240 PNG file as the boot splash screen:
 
-- POST to `/uploadpng` via the web form
 - File will be saved as `/logo4.png`
 - It will be shown on next boot
 
