@@ -35,7 +35,7 @@
 #include <SPIFFS.h>
 #include <WebServer.h>
 #include <XPT2046_Touchscreen.h>
-
+//#include <configDS.h>
 // Touchscreen pins
 #define XPT2046_IRQ 36  // T_IRQ
 #define XPT2046_MOSI 32 // T_DIN
