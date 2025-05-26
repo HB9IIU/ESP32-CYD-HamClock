@@ -27,7 +27,6 @@
 #include <HB9IIU7seg42ptNormal.h>
 #include <PNGdec.h>
 #include <SPIFFS.h>
-#include <config.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
@@ -35,7 +34,13 @@
 #include <SPIFFS.h>
 #include <WebServer.h>
 #include <XPT2046_Touchscreen.h>
-//#include <configDS.h>
+#ifdef MYCONFIG_H_EXISTS
+    #include <myconfig.h>  // Only include myconfig.h if it exists
+#else
+    #include <config.h>     // Include config.h if configDS.h is not present
+#endif
+
+
 // Touchscreen pins
 #define XPT2046_IRQ 36  // T_IRQ
 #define XPT2046_MOSI 32 // T_DIN
