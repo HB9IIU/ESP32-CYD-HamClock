@@ -5,4 +5,4 @@
 .vscode/ipch
 .DS_Store
 .vscode
-configDS.h
+myconfig.h

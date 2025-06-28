@@ -51,7 +51,7 @@ build cmake_object_order_depends_target_Cpp20Tests: phony || .
 
 build CMakeFiles/Cpp20Tests.dir/smoke_test.o: CXX_COMPILER__Cpp20Tests_unscanned_Debug /Users/danielstaempfli/SynologyDrive/ZZ_GITHUB_NEW/ESP32-CYD-HamClock/lib/ArduinoJson-7.x/extras/tests/Cpp20/smoke_test.cpp || cmake_object_order_depends_target_Cpp20Tests
   DEP_FILE = CMakeFiles/Cpp20Tests.dir/smoke_test.o.d
-  FLAGS = -g -std=gnu++20 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk
+  FLAGS = -g -std=gnu++20
   OBJECT_DIR = CMakeFiles/Cpp20Tests.dir
   OBJECT_FILE_DIR = CMakeFiles/Cpp20Tests.dir
 
@@ -64,7 +64,7 @@ build CMakeFiles/Cpp20Tests.dir/smoke_test.o: CXX_COMPILER__Cpp20Tests_unscanned
 # Link the executable Cpp20Tests
 
 build Cpp20Tests: CXX_EXECUTABLE_LINKER__Cpp20Tests_Debug CMakeFiles/Cpp20Tests.dir/smoke_test.o
-  FLAGS = -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk
+  FLAGS = -g
   OBJECT_DIR = CMakeFiles/Cpp20Tests.dir
   POST_BUILD = :
   PRE_LINK = :
