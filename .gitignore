@@ -6,4 +6,6 @@
 .DS_Store
 .vscode
 myconfig.h
-/build
+# PlatformIO build artifacts
+.pio/
+build/
