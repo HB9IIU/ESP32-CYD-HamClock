@@ -9,3 +9,5 @@ myconfig.h
 # PlatformIO build artifacts
 .pio/
 build/
+
+**/.DS_Store
