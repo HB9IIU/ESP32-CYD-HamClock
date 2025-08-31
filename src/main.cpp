@@ -257,10 +257,11 @@ void setup()
     // Display PNG from SPIFFS
     displayPNGfromSPIFFS(startupLogo.c_str(), 0);
     // BETA release display
+    /*
     tft.setFreeFont(&JetBrainsMono_Bold11pt7b);
     tft.setTextColor(TFT_CYAN);
     tft.drawCentreString("Beta Pre-Release", 160, 210, 1);
-
+*/
     retrieveAPIkeyFromPref();
     // apiKey="";
 
