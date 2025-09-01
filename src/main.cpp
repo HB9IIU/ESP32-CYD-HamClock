@@ -244,7 +244,7 @@ void setup()
 
     tft.init();
     tft.setRotation(3);
-        //tft.setRotation(1);// marco
+        tft.setRotation(1);// marco
 
     tft.fillScreen(TFT_BLACK);
     Serial.println("TFT Display initialized!");
