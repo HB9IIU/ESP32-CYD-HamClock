@@ -5,6 +5,7 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
+#include "OpenMeteoWeather.h"
 #include <TimeLib.h>
 #include <HB9IIU7seg42ptItalic.h> // https://rop.nl/truetype2gfx/ https://fontforge.org/en-US/
 #include <HB9IIUOrbitronMed8pt.h>
@@ -44,7 +45,6 @@ using fs::File;
 SPIClass touchscreenSPI = SPIClass(VSPI);
 XPT2046_Touchscreen touchscreen(XPT2046_CS, XPT2046_IRQ);
 
-String apiKey;
 const byte DNS_PORT = 53;
 DNSServer dnsServer;
 IPAddress apIP(192, 168, 4, 1);
@@ -55,7 +55,7 @@ unsigned long currentMillis = millis();
 unsigned long lastActivity = 0;                    // Last time user interacted (for screensaver)
 unsigned long screenSaverTimeout = 1000 * 60 * 60; // 60 minute
 
-int tOffset = 0; // will be updated via configuration device time (Iphone) and later via API call that contains offset according to lat & lon
+int utcOffsetSeconds = 0; // From setup browser, then Open-Meteo for the configured location.
 Preferences prefs;
 // --- globals ---
 uint8_t activePage = 1;
@@ -111,7 +111,7 @@ SolarData solarData;
 WebServer server(80); // HTTP server on port 80
 
 // Configurable Settings (replace all previous #defines)
-bool APIkeyIsValid = false;
+bool weatherAvailable = false;
 float latitude = 46.4667118;
 float longitude = 6.8590456;
 uint16_t localTimeColour = TFT_GREEN;
@@ -127,7 +127,7 @@ String startupLogo = "logo1.png";
 bool italicClockFonts = false;
 
 volatile bool refreshDigits = false;
-const String weatherAPI = "https://api.openweathermap.org/data/2.5/weather"; // OpenWeather API endpoint
+const String weatherAPI = "https://api.open-meteo.com/v1/forecast";
 
 // Global variables for previous time tracking
 String previousLocalTime = "";
@@ -172,7 +172,7 @@ TFT_eSprite labelSprite = TFT_eSprite(&tft); // Global sprite
 
 // Scrolling Text
 int scrollingTextXposition;                                                                                                                        // Variable for text position (to start at the rightmost side)
-String scrollText = "Sorry, No Weather Info At This Moment!!!    Have you enterred your API key via the Web Interface at http://hamclock.local ?"; // Text to scroll
+String scrollText = "Waiting for weather from Open-Meteo. Set your location at http://hamclock.local"; // Text to scroll
 // Timing variables
 unsigned long previousMillisForScroller = 0; // Store last time the action was performed
 
@@ -193,10 +193,6 @@ void displayTime(int x, int y, String time, String &previousTime, int yOffset, u
 String convertTimestampToDate(long timestamp);
 void loadSettings();
 void handleRoot();
-void handleApiKeyPage();
-void handleSaveApiKey();
-void handleGetApiKey();
-void retrieveAPIkeyFromPref();
 void handleSave();
 void drawOrredrawStaticElements();
 void mountAndListSPIFFS(uint8_t levels = 255, bool listContent = true);
@@ -262,8 +258,6 @@ void setup()
     tft.setTextColor(TFT_CYAN);
     tft.drawCentreString("Beta Pre-Release", 160, 210, 1);
 */
-    retrieveAPIkeyFromPref();
-    // apiKey="";
 
     labelSprite.setColorDepth(8);
     labelSprite.createSprite(120, 30); // Size depends on font & text
@@ -320,10 +314,9 @@ void setup()
   doc["startupLogo"] = startupLogo;
   doc["italicClockFonts"] = italicClockFonts;
 doc["screenSaverTimeout"] = screenSaverTimeout / 60000;  // convert ms → minutes
-doc ["APIkeyIsValid"] =APIkeyIsValid;
+doc["weatherAvailable"] = weatherAvailable;
 doc ["autoPageChange"] =autoPageChange;
 
-Serial.print("HERE"); Serial.println(APIkeyIsValid);
   String response;
   serializeJson(doc, response);
   server.send(200, "application/json", response); });
@@ -606,10 +599,7 @@ Serial.print("HERE"); Serial.println(APIkeyIsValid);
   }
   server.send(400, "application/json", "{\"status\":\"bad request\"}"); });
 
-            server.on("/apikey.html", handleApiKeyPage);
 
-            server.on("/saveApiKey", handleSaveApiKey);
-            server.on("/getApiKey", handleGetApiKey);
 
             server.on("/setAutoPage", HTTP_GET, []()
                       {
@@ -680,7 +670,7 @@ void loop()
     }
 
     // 🌤️ Refresh weather data every 5 minutes
-    if (currentMillis - previousMillisForWeatherDataUpdate >= 1000UL * 60 * 5 && APIkeyIsValid)
+    if (currentMillis - previousMillisForWeatherDataUpdate >= 1000UL * 60 * 5 && WiFi.status() == WL_CONNECTED)
     {
         previousMillisForWeatherDataUpdate = currentMillis;
         Serial.println("Getting fresh weather data");
@@ -753,7 +743,7 @@ void loop()
 
                 // 🕒 Update time display
                 timeClient.update();
-                long localEpoch = timeClient.getEpochTime() + (tOffset * 3600);
+                long localEpoch = timeClient.getEpochTime() + utcOffsetSeconds;
                 String localTime = formatLocalTime(localEpoch);
                 String utcTime = timeClient.getFormattedTime();
 
@@ -793,7 +783,7 @@ void loop()
 
                 colonVisible = !colonVisible;
                 timeClient.update();
-                long localEpoch = timeClient.getEpochTime() + (tOffset * 3600);
+                long localEpoch = timeClient.getEpochTime() + utcOffsetSeconds;
                 String localTime = formatLocalTime(localEpoch);
                 String utcTime = timeClient.getFormattedTime();
 
@@ -868,209 +858,69 @@ void loop()
     }
 }
 
-// Fetch weather data
+// Fetch current conditions and today's sun times without an API key.
 void fetchWeatherData()
 {
+    auto unavailable = []() {
+        weatherAvailable = false;
+        scrollText = "Weather unavailable - check Wi-Fi and location. Retrying automatically.     Open-Meteo";
+        scrollingTextXposition = scrollingText.width();
+    };
+    if (WiFi.status() != WL_CONNECTED || !isfinite(latitude) || !isfinite(longitude) ||
+        latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)
+    {
+        unavailable();
+        return;
+    }
+
     HTTPClient http;
-    String weatherURL = weatherAPI + "?lat=" + String(latitude) + "&lon=" + String(longitude) + "&appid=" + apiKey + "&units=metric";
-
-    // Make GET Request
-    Serial.println("");
-    Serial.println("Weather API URL to test in Broswer");
-    Serial.println(weatherURL);
-    Serial.println("");
-
-    http.begin(weatherURL);
-
-    int httpCode = http.GET();
-
-    if (httpCode == HTTP_CODE_OK)
+    String url = weatherAPI + "?latitude=" + String(latitude, 6) +
+        "&longitude=" + String(longitude, 6) +
+        "&current=temperature_2m,relative_humidity_2m,pressure_msl,weather_code" +
+        "&daily=sunrise,sunset&timezone=auto&timeformat=unixtime&forecast_days=1&temperature_unit=celsius";
+    http.setConnectTimeout(8000);
+    http.setTimeout(8000);
+    if (!http.begin(url))
     {
-        String payload = http.getString();
-        // Serial.println(payload);
-        Serial.println("Weather data received.");
-
-        // Parse the JSON response
-        JsonDocument doc;
-        deserializeJson(doc, payload);
-
-        // Extracting values from the JSON response and assigning to variables
-
-        // Coordinates
-        float lon = doc["coord"]["lon"];
-        float lat = doc["coord"]["lat"];
-
-        // Weather
-        int weatherId = doc["weather"][0]["id"];
-        const char *weatherMain = doc["weather"][0]["main"];
-        const char *weatherDescription = doc["weather"][0]["description"];
-        const char *weatherIcon = doc["weather"][0]["icon"];
-
-        // Base
-        const char *base = doc["base"];
-
-        // Main weather data
-        float temp = doc["main"]["temp"];
-        float feels_like = doc["main"]["feels_like"];
-        float temp_min = doc["main"]["temp_min"];
-        float temp_max = doc["main"]["temp_max"];
-        int pressure = doc["main"]["pressure"];
-        int humidity = doc["main"]["humidity"];
-        int sea_level = doc["main"]["sea_level"];
-        int grnd_level = doc["main"]["grnd_level"];
-
-        // Visibility
-        int visibility = doc["visibility"];
-
-        // Wind data
-        float wind_speed = doc["wind"]["speed"];
-        int wind_deg = doc["wind"]["deg"];
-        float wind_gust = doc["wind"]["gust"];
-
-        // Rain data
-        float rain_1h = doc["rain"]["1h"];
-
-        // Clouds data
-        int clouds_all = doc["clouds"]["all"];
-
-        // Date/Time
-        long dt = doc["dt"];
-
-        // System data
-        int sys_type = doc["sys"]["type"];
-        int sys_id = doc["sys"]["id"];
-        const char *sys_country = doc["sys"]["country"];
-        long sunrise = doc["sys"]["sunrise"];
-        long sunset = doc["sys"]["sunset"];
-
-        // Timezone
-        int tzOffsetSeconds = 0;
-        if (doc["timezone"].is<int>())
-        {
-            tzOffsetSeconds = doc["timezone"].as<int>(); // e.g. 7200
-        }
-        int tzOffsetHours = tzOffsetSeconds / 3600;
-        tOffset = tzOffsetHours;
-        Serial.printf("🕰️ tOffset set to %d (from %d seconds retrieved from API response)\n", tOffset, tzOffsetSeconds);
-
-        // Location data
-        int id = doc["id"];
-        const char *name = doc["name"];
-
-        // Status code
-        int cod = doc["cod"];
-
-        // Print the extracted values
-        Serial.println("Weather data received.");
-        Serial.print("Coordinates: ");
-        Serial.print("Longitude: ");
-        Serial.print(lon);
-        Serial.print(", Latitude: ");
-        Serial.println(lat);
-
-        Serial.print("Weather ID: ");
-        Serial.println(weatherId);
-        Serial.print("Main: ");
-        Serial.println(weatherMain);
-        Serial.print("Description: ");
-        Serial.println(weatherDescription);
-        Serial.print("Icon: ");
-        Serial.println(weatherIcon);
-
-        Serial.print("Base: ");
-        Serial.println(base);
-
-        Serial.print("Temperature: ");
-        Serial.println(temp);
-        Serial.print("Feels like: ");
-        Serial.println(feels_like);
-        Serial.print("Min Temp: ");
-        Serial.println(temp_min);
-        Serial.print("Max Temp: ");
-        Serial.println(temp_max);
-        Serial.print("Pressure: ");
-        Serial.println(pressure);
-        Serial.print("Humidity: ");
-        Serial.println(humidity);
-        Serial.print("Sea level: ");
-        Serial.println(sea_level);
-        Serial.print("Ground level: ");
-        Serial.println(grnd_level);
-
-        Serial.print("Visibility: ");
-        Serial.println(visibility);
-
-        Serial.print("Wind speed: ");
-        Serial.println(wind_speed);
-        Serial.print("Wind degree: ");
-        Serial.println(wind_deg);
-        Serial.print("Wind gust: ");
-        Serial.println(wind_gust);
-
-        Serial.print("Rain 1h: ");
-        Serial.println(rain_1h);
-
-        Serial.print("Clouds: ");
-        Serial.println(clouds_all);
-
-        Serial.print("Timestamp: ");
-        Serial.println(dt);
-
-        Serial.print("System type: ");
-        Serial.println(sys_type);
-        Serial.print("System ID: ");
-        Serial.println(sys_id);
-        Serial.print("Country: ");
-        Serial.println(sys_country);
-        Serial.print("Sunrise: ");
-        Serial.println(sunrise);
-        Serial.print("Sunset: ");
-        Serial.println(sunset);
-
-        Serial.print("Timezone (sec): ");
-        Serial.println(tzOffsetSeconds);
-
-        Serial.print("Location ID: ");
-        Serial.println(id);
-        Serial.print("Location Name: ");
-        Serial.println(name);
-
-        Serial.print("Status code: ");
-        Serial.println(cod);
-
-        // Convert sunrise and sunset times to local time
-        long localSunrise = sunrise + (tOffset * 3600); // Adjust for local time (seconds)
-        long localSunset = sunset + (tOffset * 3600);   // Adjust for local time (seconds)
-
-        // Convert sunrise and sunset times to human-readable format
-        String sunriseTime = convertEpochToTimeString(localSunrise);
-        String sunsetTime = convertEpochToTimeString(localSunset);
-        String date = convertTimestampToDate(dt); // Convert to DD:MM:YY format
-        // Build the scrollText with the date, weather, sunrise, and sunset times
-        scrollText = String(name) + "     " + sys_country + "    " +
-                     date + "     " +
-                     "Tmp: " + String(temp, 1) + " C     " + // One decimal place for temp
-                     "RH: " + String(humidity) + "%" + "       " +
-                     "Pres: " + String(pressure) + "hPa" + "       " +
-                     String(weatherDescription) + "       " +
-                     "Sunrise: " + sunriseTime + "     " +
-                     "Sunset: " + sunsetTime;
-
-        scrollingText.drawString(scrollText, scrollingTextXposition, 0); // Draw text in sprite at position scrollingTextXposition
-        scrollingTextXposition = scrollingText.width();
-        Serial.println(scrollText);
-        APIkeyIsValid = true;
+        unavailable();
+        return;
     }
-    else
+    int status = http.GET();
+    if (status != HTTP_CODE_OK)
     {
-        Serial.print("Error fetching weather data, HTTP code: ");
-        Serial.println(httpCode);
-        scrollText = "Sorry, No Weather Info At This Moment!!!            Have you enterred your API key?"; // Text to scroll
-        scrollingTextXposition = scrollingText.width();
-        APIkeyIsValid = false;
+        Serial.printf("Open-Meteo request failed: %d\n", status);
+        http.end();
+        unavailable();
+        return;
     }
 
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, http.getString());
     http.end();
+    OpenMeteoWeather weather;
+    if (error || !parseOpenMeteoWeather(doc.as<JsonVariantConst>(), weather))
+    {
+        Serial.println("Invalid or incomplete Open-Meteo response");
+        unavailable();
+        return;
+    }
+
+    utcOffsetSeconds = weather.utcOffsetSeconds;
+    String sunrise = weather.sunrise > 0
+        ? convertEpochToTimeString(weather.sunrise + utcOffsetSeconds) : "N/A";
+    String sunset = weather.sunset > 0
+        ? convertEpochToTimeString(weather.sunset + utcOffsetSeconds) : "N/A";
+    // The forecast API does not provide a town name; identify the chosen location.
+    scrollText = String(latitude, 2) + ", " + String(longitude, 2) + "     " +
+        convertTimestampToDate(weather.timestamp + utcOffsetSeconds) + "     " +
+        "Tmp: " + String(weather.temperature, 1) + " C     " +
+        "RH: " + String(weather.humidity, 0) + "%     " +
+        "Pres: " + String(weather.pressure, 0) + "hPa     " +
+        openMeteoDescription(weather.code) + "     Sunrise: " + sunrise +
+        "     Sunset: " + sunset + "     Weather: Open-Meteo";
+    scrollingTextXposition = scrollingText.width();
+    weatherAvailable = true;
+    Serial.println(scrollText);
 }
 
 // Function to format the local time from epoch time
@@ -1323,18 +1173,6 @@ void handleRoot()
     server.streamFile(file, "text/html");
     file.close();
 }
-void handleApiKeyPage()
-{
-    File file = SPIFFS.open("/apikey.html", "r");
-    if (!file)
-    {
-        server.send(404, "text/plain", "File not found");
-        return;
-    }
-    server.streamFile(file, "text/html");
-    file.close();
-}
-
 void handleSave()
 {
     if (server.hasArg("latitude"))
@@ -2612,37 +2450,6 @@ void checkIfscreenIsTouchedDuringStartUpForFactoryReset()
         }
     }
 }
-void handleSaveApiKey()
-{
-    if (server.hasArg("key"))
-    {
-        String apiKey = server.arg("key");
-        prefs.begin("config", false);
-        prefs.putString("ow_api_key", apiKey);
-        prefs.end();
-        server.send(200, "text/plain", "API key saved");
-        fetchWeatherData();
-    }
-    else
-    {
-        server.send(400, "text/plain", "Missing key");
-    }
-}
-
-void handleGetApiKey()
-{
-    prefs.begin("config", true);
-    apiKey = prefs.getString("ow_api_key", "No API Key yet");
-    prefs.end();
-    server.send(200, "text/plain", apiKey);
-}
-void retrieveAPIkeyFromPref()
-{
-    prefs.begin("config", true);
-    apiKey = prefs.getString("ow_api_key", "No API Key yet");
-    prefs.end();
-}
-
 void tryToRetrieveUTCoffsetFromFirstConfiguration()
 {
     prefs.begin("iPhonetime", true);
@@ -2679,5 +2486,5 @@ void tryToRetrieveUTCoffsetFromFirstConfiguration()
                   days, hours, minutes, seconds);
 
     // Update Global variable
-    tOffset = offsetMinutes / 60.0;
+    utcOffsetSeconds = offsetMinutes * 60;
 }

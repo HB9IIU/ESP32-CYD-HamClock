@@ -7,7 +7,7 @@ A standalone ham radio clock for the **Cheap Yellow Display (CYD)** ESP32 board,
 ## Features
 
 - Local and UTC clocks with configurable colors, frames and fonts.
-- Weather information from OpenWeather, using your own API key.
+- Weather information from Open-Meteo, with no API key or account needed.
 - Solar activity, HF band conditions and VHF information from HamQSL.
 - Six touchscreen pages, automatic page changes and a screensaver.
 - Browser configuration, selectable splash images and custom 320 × 240 PNG uploads.
@@ -50,9 +50,11 @@ The setup page also supplies the browser's time information. Internet access is 
 
 ## Weather and display settings
 
-Open the device's web interface and use **Modify Open Weather API key** to save your OpenWeather key. Weather data is retrieved through the OpenWeather current-weather API. An invalid or missing key prevents weather updates; solar data is fetched separately from HamQSL.
+Open **http://hamclock.local** and set your **latitude and longitude**. Weather loads automatically from [Open-Meteo](https://open-meteo.com/), with no API key, account or registration. The public API is free for non-commercial use, subject to [Open-Meteo's usage limits](https://open-meteo.com/en/pricing).
 
-Set your latitude and longitude in the web interface so weather is requested for your location.
+The banner shows temperature, humidity, sea-level pressure, weather conditions and local sunrise/sunset times. Coordinates identify your selected location. Weather refreshes every five minutes and retries after failures; the configuration page remains usable during outages. Missing sun times (for example during polar day/night) appear as `N/A`. Solar data still comes separately from HamQSL.
+
+Local time uses the weather location's UTC offset, including fractional-hour time zones. Before the first successful weather update, it uses the offset supplied by the browser during Wi-Fi setup.
 
 The web interface lets you change clock and weather colors, border thickness, italic digits, weather scrolling speed, the screensaver timeout and automatic page changes. Choose a built-in splash image or upload a **320 × 240 PNG**.
 
@@ -97,8 +99,19 @@ Do not flash the merged image at the application's 0x10000 address. The `no_ota.
 | Blank or wrong-colored screen | Confirm the ILI9341 controller and GPIO mapping above. A different CYD variant may need a different driver. |
 | Web interface missing after manual upload | Upload SPIFFS with `pio run -e esp32dev -t uploadfs`, or install the complete merged image. |
 | `hamclock.local` does not resolve | Connect to the same network and use the device's IP address directly. |
-| Weather unavailable | Check the saved OpenWeather key and internet connectivity. |
+| Weather unavailable | Check internet connectivity and latitude/longitude. The device retries every five minutes; no API key is required. |
 | TFT_eSPI warns that `TOUCH_CS` is undefined | Touch is handled by the separate XPT2046 library and SPI bus; TFT_eSPI's touch interface is unused. |
+
+## Weather parser tests
+
+The host tests cover valid responses, missing fields, API errors, polar sun times and fractional UTC offsets. Run with a C++11 compiler:
+
+```sh
+c++ -std=c++11 -Iinclude -Ilib/ArduinoJson-7.x/src tests/test_open_meteo.cpp -o /tmp/cyd-weather-test
+/tmp/cyd-weather-test
+```
+
+Pass a saved Open-Meteo JSON response as an optional argument to test live-response parsing. These tests do not replace a USB installation and display check on a physical CYD.
 
 ## Publishing the flasher
 
@@ -123,4 +136,4 @@ See [GitHub's Pages workflow documentation](https://docs.github.com/en/pages/get
 
 ## License and credits
 
-Copyright HB9IIU. See [LICENSE](LICENSE) for the project's terms, including its commercial-device restriction. Bundled libraries retain their respective licenses and notices. Weather data is provided by OpenWeather; solar and propagation data by HamQSL.
+Copyright HB9IIU. See [LICENSE](LICENSE) for the project's terms, including its commercial-device restriction. Bundled libraries retain their respective licenses and notices. Weather data is provided by [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); solar and propagation data by HamQSL.

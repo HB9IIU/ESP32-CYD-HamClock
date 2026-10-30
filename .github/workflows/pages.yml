@@ -25,6 +25,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - name: Test weather response parsing
+        run: |
+          c++ -std=c++11 -Iinclude -Ilib/ArduinoJson-7.x/src tests/test_open_meteo.cpp -o /tmp/cyd-weather-test
+          /tmp/cyd-weather-test
       - name: Package firmware and flasher
         run: python scripts/build_web.py
       - uses: actions/upload-pages-artifact@v4
