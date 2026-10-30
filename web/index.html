@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Install ESP32 CYD HamClock directly from your browser, then set up Wi-Fi and your station display.">
+  <title>Install · ESP32 CYD HamClock</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101820; color: #e9eef2; line-height: 1.65; }
+    body { margin: 0; padding: 36px 22px; }
+    main { max-width: 780px; margin: auto; }
+    .eyebrow { color: #ffd369; letter-spacing: .14em; font-size: .8rem; font-weight: 700; }
+    h1 { font-size: clamp(2rem, 6vw, 3.4rem); line-height: 1.12; margin: 16px 0; }
+    h2 { font-size: 1.3rem; }
+    .lead { color: #b9c9d4; font-size: 1.15rem; }
+    section { margin: 24px 0; padding: 24px; background: #1a2732; border: 1px solid #344651; border-radius: 14px; }
+    a { color: #8fd8ff; text-underline-offset: 3px; }
+    button { background: #ffd369; color: #101820; border: 0; padding: 14px 24px; border-radius: 8px; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: wait; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #fff; outline-offset: 5px; }
+    li { margin: 10px 0; }
+    code { overflow-wrap: anywhere; }
+    footer, .meta { color: #b9c9d4; font-size: .9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">HB9IIU · CHEAP YELLOW DISPLAY</p>
+  <h1>Your CYD.<br>Your ham radio clock.</h1>
+  <p class="lead">Local and UTC time, weather, solar activity and propagation conditions on one compact touchscreen.</p>
+  <section aria-labelledby="install-title">
+    <h2 id="install-title">Install HamClock</h2>
+    <p>For the classic ESP32 CYD with a 320 × 240 ILI9341 display, XPT2046 resistive touch and 4 MB flash. Other display controllers and ESP32-S3 boards need different firmware.</p>
+    <ol>
+      <li>Connect your CYD using a USB <strong>data</strong> cable.</li>
+      <li>Open this page in desktop Chrome or Edge. Close any serial monitor using the board.</li>
+      <li>Click Connect, select the board’s serial port and follow the installation dialog.</li>
+    </ol>
+    <p><strong>Save your settings first.</strong> The complete firmware image replaces the device’s filesystem and settings. You will need to set up Wi-Fi again.</p>
+    <esp-web-install-button manifest="manifest.json">
+      <button slot="activate" id="connect" disabled>Connect and install</button>
+      <p slot="unsupported">Your browser does not support Web Serial. Use desktop Chrome or Edge with a USB connection.</p>
+      <p slot="not-allowed">Open the HTTPS version of this page to allow USB access.</p>
+    </esp-web-install-button>
+    <p id="status" class="meta" role="status">Loading installer…</p>
+    <noscript><p>Enable JavaScript to use the installer, or download the firmware below.</p></noscript>
+    <p><a href="CYDHamClock.bin" download>Download the same firmware</a> · <a href="SHA256SUMS.txt">SHA-256 checksum</a></p>
+  </section>
+  <section>
+    <h2>First start</h2>
+    <ol>
+      <li>Wait for the Wi-Fi setup screen, then join <strong>HB9IIUSetup</strong> on your phone or computer. It has no password.</li>
+      <li>Open <a href="http://192.168.4.1">http://192.168.4.1</a>, choose your 2.4 GHz Wi-Fi network, enter its password and save.</li>
+      <li>Reconnect to your home network. Visit <a href="http://hamclock.local">http://hamclock.local</a> to customize the display and enter your OpenWeather API key.</li>
+    </ol>
+    <p>Tap the display to move through the six pages. If the local address does not resolve, use the CYD’s IP address shown by your router or the serial monitor.</p>
+  </section>
+  <section>
+    <h2>Need a hand?</h2>
+    <p>No serial port? Try another data cable or USB port and check the USB-to-serial driver for your board. If connecting stalls, hold BOOT, press and release RESET, then release BOOT once connection starts.</p>
+    <p><a href="https://github.com/HB9IIU/ESP32-CYD-HamClock#readme">Full CYD setup and troubleshooting</a> · <a href="https://github.com/HB9IIU/ESP32-CYD-HamClock/issues">Report an issue</a></p>
+  </section>
+  <footer>ESP32 CYD HamClock by HB9IIU · <a href="LICENSE.txt">License</a> · Installer powered by <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a></footer>
+</main>
+<script type="module">
+  const status = document.getElementById('status');
+  try {
+    await import('https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module');
+    await customElements.whenDefined('esp-web-install-button');
+    const response = await fetch('manifest.json');
+    if (!response.ok) throw new Error('Manifest unavailable');
+    const manifest = await response.json();
+    document.getElementById('connect').disabled = false;
+    status.textContent = `Firmware ID: ${manifest.version} · Complete image including web interface`;
+  } catch (error) {
+    status.textContent = 'Installer could not load. Check your internet connection and reload, or use the firmware download.';
+  }
+</script>
+</body>
+</html>

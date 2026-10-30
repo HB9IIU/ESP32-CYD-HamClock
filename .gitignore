@@ -11,3 +11,6 @@ myconfig.h
 build/
 
 **/.DS_Store
+
+# IDE metadata must not enter the device filesystem
+**/.idea/
