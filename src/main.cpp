@@ -6,6 +6,7 @@
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
 #include "OpenMeteoWeather.h"
+#include "DisplayColor.h"
 #include <TimeLib.h>
 #include <HB9IIU7seg42ptItalic.h> // https://rop.nl/truetype2gfx/ https://fontforge.org/en-US/
 #include <HB9IIUOrbitronMed8pt.h>
@@ -65,6 +66,8 @@ bool wasTouching = false;
 int scanCount = 0;
 bool inAPmode = false;
 bool autoPageChange = true;
+bool displayInvert = true; // Panel color inversion; matches the TFT_INVERSION_ON build default
+bool displayBGR = true;    // Panel color order; false swaps red and blue
 // Struct to store all parsed solar data
 struct SolarData
 {
@@ -192,6 +195,7 @@ String convertEpochToTimeString(long epochTime);
 void displayTime(int x, int y, String time, String &previousTime, int yOffset, uint16_t fontColor);
 String convertTimestampToDate(long timestamp);
 void loadSettings();
+void applyDisplayColor();
 void handleRoot();
 void handleSave();
 void drawOrredrawStaticElements();
@@ -250,6 +254,7 @@ void setup()
     mountAndListSPIFFS();
     // Load saved settings first
     loadSettings();
+    applyDisplayColor();
     // Display PNG from SPIFFS
     displayPNGfromSPIFFS(startupLogo.c_str(), 0);
     // BETA release display
@@ -316,6 +321,8 @@ void setup()
 doc["screenSaverTimeout"] = screenSaverTimeout / 60000;  // convert ms → minutes
 doc["weatherAvailable"] = weatherAvailable;
 doc ["autoPageChange"] =autoPageChange;
+doc["displayInvert"] = displayInvert;
+doc["displayBGR"] = displayBGR;
 
   String response;
   serializeJson(doc, response);
@@ -600,6 +607,24 @@ doc ["autoPageChange"] =autoPageChange;
   server.send(400, "application/json", "{\"status\":\"bad request\"}"); });
 
 
+
+            server.on("/setdisplay", HTTP_POST, []()
+                      {
+    JsonDocument doc;
+    if (deserializeJson(doc, server.arg("plain"))) {
+        server.send(400, "text/plain", "JSON parse error");
+        return;
+    }
+    displayInvert = doc["displayInvert"] | displayInvert;
+    displayBGR = doc["displayBGR"] | displayBGR;
+    Serial.printf("🎨 Display invert: %s, BGR: %s\n", displayInvert ? "on" : "off", displayBGR ? "on" : "off");
+    applyDisplayColor();
+    saveSettings();
+    // Color order applies to newly drawn pixels, so redraw the clock page.
+    activePage = 1;
+    drawOrredrawStaticElements();
+    refreshDigits = true;
+    server.send(200, "text/plain", "OK"); });
 
             server.on("/setAutoPage", HTTP_GET, []()
                       {
@@ -1043,6 +1068,14 @@ String convertTimestampToDate(long timestamp)
     return String(buffer);
 }
 
+// Apply panel inversion and color order saved from the web dashboard.
+void applyDisplayColor()
+{
+    tft.invertDisplay(displayInvert);
+    tft.writecommand(TFT_MADCTL);
+    tft.writedata(displayMadctl(tft.getRotation(), displayBGR));
+}
+
 void loadSettings()
 {
 
@@ -1081,6 +1114,8 @@ void loadSettings()
     italicClockFonts = doc["italicClockFonts"] | italicClockFonts;
     screenSaverTimeout = doc["screenSaverTimeout"] | screenSaverTimeout;
     autoPageChange = doc["autoPageChange"] | autoPageChange;
+    displayInvert = doc["displayInvert"] | displayInvert;
+    displayBGR = doc["displayBGR"] | displayBGR;
 
     Serial.println();
     Serial.println("-----------------------------------------------------------------");
@@ -1121,6 +1156,8 @@ void saveSettings()
     doc["startupLogo"] = startupLogo;
     doc["italicClockFonts"] = italicClockFonts;
     doc["autoPageChange"] = autoPageChange;
+    doc["displayInvert"] = displayInvert;
+    doc["displayBGR"] = displayBGR;
 
     fs::File file = SPIFFS.open("/settings.json", "w");
 

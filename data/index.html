@@ -202,6 +202,20 @@
                     </div>
                 </div>
             </div>
+            <div class="row" style="margin-bottom: 20px; display: flex; justify-content: center;">
+                <div class="col-md-12 text-center">
+                    <p class="text-white" style="font-family: 'Orbitron', sans-serif; margin-bottom: 6px;">Display Colors</p>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" id="displayInvert" type="checkbox">
+                        <label class="form-check-label text-white" for="displayInvert" style="font-family:'Orbitron', sans-serif;">Invert colors</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" id="displaySwapRB" type="checkbox">
+                        <label class="form-check-label text-white" for="displaySwapRB" style="font-family:'Orbitron', sans-serif;">Swap red/blue</label>
+                    </div>
+                    <p class="text-white-50 small mt-1">Toggle "Invert colors" if black shows as white. Check "Swap red/blue" if red shows as blue.</p>
+                </div>
+            </div>
             <div class="row" data-pg-collapsed>
                 <div class="text-center mt-4" data-pg-collapsed>
                     <input accept="image/png" class="form-control d-none" id="imageUpload" type="file">
@@ -696,6 +710,22 @@
                 console.error("❌ Error updating doubleFrame:", err);
             });
     });
+    // "Swap red/blue" is the opposite of the panel's default BGR color order.
+    function sendDisplayColor() {
+        fetch("/setdisplay", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                displayInvert: document.getElementById("displayInvert").checked,
+                displayBGR: !document.getElementById("displaySwapRB").checked
+            })
+        })
+            .then(res => { if (!res.ok) throw new Error("HTTP " + res.status); })
+            .catch(err => console.error("❌ Error updating display colors:", err));
+    }
+    document.getElementById("displayInvert").addEventListener("change", sendDisplayColor);
+    document.getElementById("displaySwapRB").addEventListener("change", sendDisplayColor);
+
     document.getElementById("autoPageChange").addEventListener("change", function () {
         const change = this.checked; // true or false
 
@@ -765,6 +795,11 @@
                 console.groupEnd();
 
                 // Auto Page Change
+                const invertBox = document.getElementById('displayInvert');
+                const swapBox = document.getElementById('displaySwapRB');
+                if (invertBox) invertBox.checked = !!config.displayInvert;
+                if (swapBox) swapBox.checked = config.displayBGR === false;
+
                 if (els.autoPageChange) {
                     els.autoPageChange.checked = !!config.autoPageChange;
                     log('Auto Page Change set to', !!config.autoPageChange);

@@ -56,7 +56,7 @@ The banner shows temperature, humidity, sea-level pressure, weather conditions a
 
 Local time uses the weather location's UTC offset, including fractional-hour time zones. Before the first successful weather update, it uses the offset supplied by the browser during Wi-Fi setup.
 
-The web interface lets you change clock and weather colors, border thickness, italic digits, weather scrolling speed, the screensaver timeout and automatic page changes. Choose a built-in splash image or upload a **320 × 240 PNG**.
+The web interface lets you change clock and weather colors, border thickness, italic digits, weather scrolling speed, the screensaver timeout, automatic page changes and display color fixes (**Invert colors** and **Swap red/blue**) for CYD panels that show the wrong colors. Choose a built-in splash image or upload a **320 × 240 PNG**.
 
 Tap the screen to cycle through the clock, propagation, three solar-information pages and Wi-Fi information. Touch also wakes the display from its screensaver.
 
@@ -96,7 +96,8 @@ Do not flash the merged image at the application's 0x10000 address. The `no_ota.
 | --- | --- |
 | No USB serial port | Use a data cable, try another port, and install the driver matching your board's USB-to-serial chip if needed. |
 | Cannot connect to flash | Close serial monitors. Hold BOOT, press and release RESET, then release BOOT when the connection starts. |
-| Blank or wrong-colored screen | Confirm the ILI9341 controller and GPIO mapping above. A different CYD variant may need a different driver. |
+| Wrong colors (black shows white, or red shows blue) | Use **Invert colors** or **Swap red/blue** in the web interface. No reflash needed. |
+| Blank screen | Confirm the ILI9341 controller and GPIO mapping above. A different CYD variant may need a different driver. |
 | Web interface missing after manual upload | Upload SPIFFS with `pio run -e esp32dev -t uploadfs`, or install the complete merged image. |
 | `hamclock.local` does not resolve | Connect to the same network and use the device's IP address directly. |
 | Weather unavailable | Check internet connectivity and latitude/longitude. The device retries every five minutes; no API key is required. |
@@ -109,6 +110,8 @@ The host tests cover valid responses, missing fields, API errors, polar sun time
 ```sh
 c++ -std=c++11 -Iinclude -Ilib/ArduinoJson-7.x/src tests/test_open_meteo.cpp -o /tmp/cyd-weather-test
 /tmp/cyd-weather-test
+c++ -std=c++11 -Iinclude tests/test_display_color.cpp -o /tmp/cyd-color-test
+/tmp/cyd-color-test
 ```
 
 Pass a saved Open-Meteo JSON response as an optional argument to test live-response parsing. These tests do not replace a USB installation and display check on a physical CYD.
