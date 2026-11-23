@@ -16,6 +16,12 @@ int main() {
     // Rotation wraps like TFT_eSPI's setRotation (m % 4 for the base orientations).
     assert(displayMadctl(5, false) == displayMadctl(1, false));
 
+    // Unchecked boxes keep the build's setting; checked boxes flip it.
+    assert(displayFlip(true, false) == true);
+    assert(displayFlip(true, true) == false);
+    assert(displayFlip(false, false) == false);
+    assert(displayFlip(false, true) == true);
+
     std::cout << "Display color tests passed\n";
     return 0;
 }

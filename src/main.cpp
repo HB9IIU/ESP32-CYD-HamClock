@@ -66,8 +66,8 @@ bool wasTouching = false;
 int scanCount = 0;
 bool inAPmode = false;
 bool autoPageChange = true;
-bool displayInvert = true; // Panel color inversion; matches the TFT_INVERSION_ON build default
-bool displayBGR = true;    // Panel color order; false swaps red and blue
+bool invertColors = false; // Web setting: flip the build's color inversion
+bool swapRedBlue = false;  // Web setting: flip the build's red/blue order
 // Struct to store all parsed solar data
 struct SolarData
 {
@@ -321,8 +321,8 @@ void setup()
 doc["screenSaverTimeout"] = screenSaverTimeout / 60000;  // convert ms → minutes
 doc["weatherAvailable"] = weatherAvailable;
 doc ["autoPageChange"] =autoPageChange;
-doc["displayInvert"] = displayInvert;
-doc["displayBGR"] = displayBGR;
+doc["invertColors"] = invertColors;
+doc["swapRedBlue"] = swapRedBlue;
 
   String response;
   serializeJson(doc, response);
@@ -615,9 +615,9 @@ doc["displayBGR"] = displayBGR;
         server.send(400, "text/plain", "JSON parse error");
         return;
     }
-    displayInvert = doc["displayInvert"] | displayInvert;
-    displayBGR = doc["displayBGR"] | displayBGR;
-    Serial.printf("🎨 Display invert: %s, BGR: %s\n", displayInvert ? "on" : "off", displayBGR ? "on" : "off");
+    invertColors = doc["invertColors"] | invertColors;
+    swapRedBlue = doc["swapRedBlue"] | swapRedBlue;
+    Serial.printf("🎨 Invert colors: %s, swap red/blue: %s\n", invertColors ? "on" : "off", swapRedBlue ? "on" : "off");
     applyDisplayColor();
     saveSettings();
     // Color order applies to newly drawn pixels, so redraw the clock page.
@@ -1071,9 +1071,15 @@ String convertTimestampToDate(long timestamp)
 // Apply panel inversion and color order saved from the web dashboard.
 void applyDisplayColor()
 {
-    tft.invertDisplay(displayInvert);
+#ifdef TFT_INVERSION_ON
+    const bool buildInverted = true;
+#else
+    const bool buildInverted = false;
+#endif
+    const bool buildBGR = (TFT_MAD_COLOR_ORDER == TFT_MAD_BGR);
+    tft.invertDisplay(displayFlip(buildInverted, invertColors));
     tft.writecommand(TFT_MADCTL);
-    tft.writedata(displayMadctl(tft.getRotation(), displayBGR));
+    tft.writedata(displayMadctl(tft.getRotation(), displayFlip(buildBGR, swapRedBlue)));
 }
 
 void loadSettings()
@@ -1114,8 +1120,8 @@ void loadSettings()
     italicClockFonts = doc["italicClockFonts"] | italicClockFonts;
     screenSaverTimeout = doc["screenSaverTimeout"] | screenSaverTimeout;
     autoPageChange = doc["autoPageChange"] | autoPageChange;
-    displayInvert = doc["displayInvert"] | displayInvert;
-    displayBGR = doc["displayBGR"] | displayBGR;
+    invertColors = doc["invertColors"] | invertColors;
+    swapRedBlue = doc["swapRedBlue"] | swapRedBlue;
 
     Serial.println();
     Serial.println("-----------------------------------------------------------------");
@@ -1156,8 +1162,8 @@ void saveSettings()
     doc["startupLogo"] = startupLogo;
     doc["italicClockFonts"] = italicClockFonts;
     doc["autoPageChange"] = autoPageChange;
-    doc["displayInvert"] = displayInvert;
-    doc["displayBGR"] = displayBGR;
+    doc["invertColors"] = invertColors;
+    doc["swapRedBlue"] = swapRedBlue;
 
     fs::File file = SPIFFS.open("/settings.json", "w");
 
