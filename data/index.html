@@ -793,12 +793,10 @@
                 console.table(config);
                 console.groupEnd();
 
-                // Auto Page Change
-                const invertBox = document.getElementById('invertColors');
-                const swapBox = document.getElementById('swapRedBlue');
-                if (invertBox) invertBox.checked = !!config.invertColors;
-                if (swapBox) swapBox.checked = !!config.swapRedBlue;
+                document.getElementById('invertColors').checked = !!config.invertColors;
+                document.getElementById('swapRedBlue').checked = !!config.swapRedBlue;
 
+                // Auto Page Change
                 if (els.autoPageChange) {
                     els.autoPageChange.checked = !!config.autoPageChange;
                     log('Auto Page Change set to', !!config.autoPageChange);

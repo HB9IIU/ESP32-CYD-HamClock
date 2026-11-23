@@ -6,7 +6,6 @@
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
 #include "OpenMeteoWeather.h"
-#include "DisplayColor.h"
 #include <TimeLib.h>
 #include <HB9IIU7seg42ptItalic.h> // https://rop.nl/truetype2gfx/ https://fontforge.org/en-US/
 #include <HB9IIUOrbitronMed8pt.h>
@@ -1072,14 +1071,16 @@ String convertTimestampToDate(long timestamp)
 void applyDisplayColor()
 {
 #ifdef TFT_INVERSION_ON
-    const bool buildInverted = true;
+    tft.invertDisplay(!invertColors);
 #else
-    const bool buildInverted = false;
+    tft.invertDisplay(invertColors);
 #endif
-    const bool buildBGR = (TFT_MAD_COLOR_ORDER == TFT_MAD_BGR);
-    tft.invertDisplay(displayFlip(buildInverted, invertColors));
-    tft.writecommand(TFT_MADCTL);
-    tft.writedata(displayMadctl(tft.getRotation(), displayFlip(buildBGR, swapRedBlue)));
+    tft.setRotation(tft.getRotation()); // restores the build's color order
+    if (swapRedBlue)
+    {
+        tft.writecommand(TFT_MADCTL);
+        tft.writedata(TFT_MAD_MV | (TFT_MAD_COLOR_ORDER ^ TFT_MAD_BGR)); // rotation 1, opposite order
+    }
 }
 
 void loadSettings()
