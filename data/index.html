@@ -202,6 +202,20 @@
                     </div>
                 </div>
             </div>
+            <div class="row" style="margin-bottom: 20px; display: flex; justify-content: center;">
+                <div class="col-md-12 text-center">
+                    <p class="text-white" style="font-family: 'Orbitron', sans-serif; margin-bottom: 6px;">Display Colors</p>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" id="invertColors" type="checkbox">
+                        <label class="form-check-label text-white" for="invertColors" style="font-family:'Orbitron', sans-serif;">Invert colors</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" id="swapRedBlue" type="checkbox">
+                        <label class="form-check-label text-white" for="swapRedBlue" style="font-family:'Orbitron', sans-serif;">Swap red/blue</label>
+                    </div>
+                    <p class="text-white-50 small mt-1">Check "Invert colors" if black shows as white. Check "Swap red/blue" if red shows as blue.</p>
+                </div>
+            </div>
             <div class="row" data-pg-collapsed>
                 <div class="text-center mt-4" data-pg-collapsed>
                     <input accept="image/png" class="form-control d-none" id="imageUpload" type="file">
@@ -696,6 +710,21 @@
                 console.error("❌ Error updating doubleFrame:", err);
             });
     });
+    function sendDisplayColor() {
+        fetch("/setdisplay", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                invertColors: document.getElementById("invertColors").checked,
+                swapRedBlue: document.getElementById("swapRedBlue").checked
+            })
+        })
+            .then(res => { if (!res.ok) throw new Error("HTTP " + res.status); })
+            .catch(err => console.error("❌ Error updating display colors:", err));
+    }
+    document.getElementById("invertColors").addEventListener("change", sendDisplayColor);
+    document.getElementById("swapRedBlue").addEventListener("change", sendDisplayColor);
+
     document.getElementById("autoPageChange").addEventListener("change", function () {
         const change = this.checked; // true or false
 
@@ -763,6 +792,9 @@
                 console.groupCollapsed('📦 Config received');
                 console.table(config);
                 console.groupEnd();
+
+                document.getElementById('invertColors').checked = !!config.invertColors;
+                document.getElementById('swapRedBlue').checked = !!config.swapRedBlue;
 
                 // Auto Page Change
                 if (els.autoPageChange) {

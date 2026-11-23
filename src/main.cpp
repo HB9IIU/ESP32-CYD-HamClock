@@ -65,6 +65,8 @@ bool wasTouching = false;
 int scanCount = 0;
 bool inAPmode = false;
 bool autoPageChange = true;
+bool invertColors = false; // Web setting: flip the build's color inversion
+bool swapRedBlue = false;  // Web setting: flip the build's red/blue order
 // Struct to store all parsed solar data
 struct SolarData
 {
@@ -192,6 +194,7 @@ String convertEpochToTimeString(long epochTime);
 void displayTime(int x, int y, String time, String &previousTime, int yOffset, uint16_t fontColor);
 String convertTimestampToDate(long timestamp);
 void loadSettings();
+void applyDisplayColor();
 void handleRoot();
 void handleSave();
 void drawOrredrawStaticElements();
@@ -250,6 +253,7 @@ void setup()
     mountAndListSPIFFS();
     // Load saved settings first
     loadSettings();
+    applyDisplayColor();
     // Display PNG from SPIFFS
     displayPNGfromSPIFFS(startupLogo.c_str(), 0);
     // BETA release display
@@ -316,6 +320,8 @@ void setup()
 doc["screenSaverTimeout"] = screenSaverTimeout / 60000;  // convert ms → minutes
 doc["weatherAvailable"] = weatherAvailable;
 doc ["autoPageChange"] =autoPageChange;
+doc["invertColors"] = invertColors;
+doc["swapRedBlue"] = swapRedBlue;
 
   String response;
   serializeJson(doc, response);
@@ -600,6 +606,24 @@ doc ["autoPageChange"] =autoPageChange;
   server.send(400, "application/json", "{\"status\":\"bad request\"}"); });
 
 
+
+            server.on("/setdisplay", HTTP_POST, []()
+                      {
+    JsonDocument doc;
+    if (deserializeJson(doc, server.arg("plain"))) {
+        server.send(400, "text/plain", "JSON parse error");
+        return;
+    }
+    invertColors = doc["invertColors"] | invertColors;
+    swapRedBlue = doc["swapRedBlue"] | swapRedBlue;
+    Serial.printf("🎨 Invert colors: %s, swap red/blue: %s\n", invertColors ? "on" : "off", swapRedBlue ? "on" : "off");
+    applyDisplayColor();
+    saveSettings();
+    // Color order applies to newly drawn pixels, so redraw the clock page.
+    activePage = 1;
+    drawOrredrawStaticElements();
+    refreshDigits = true;
+    server.send(200, "text/plain", "OK"); });
 
             server.on("/setAutoPage", HTTP_GET, []()
                       {
@@ -1043,6 +1067,22 @@ String convertTimestampToDate(long timestamp)
     return String(buffer);
 }
 
+// Apply panel inversion and color order saved from the web dashboard.
+void applyDisplayColor()
+{
+#ifdef TFT_INVERSION_ON
+    tft.invertDisplay(!invertColors);
+#else
+    tft.invertDisplay(invertColors);
+#endif
+    tft.setRotation(tft.getRotation()); // restores the build's color order
+    if (swapRedBlue)
+    {
+        tft.writecommand(TFT_MADCTL);
+        tft.writedata(TFT_MAD_MV | (TFT_MAD_COLOR_ORDER ^ TFT_MAD_BGR)); // rotation 1, opposite order
+    }
+}
+
 void loadSettings()
 {
 
@@ -1081,6 +1121,8 @@ void loadSettings()
     italicClockFonts = doc["italicClockFonts"] | italicClockFonts;
     screenSaverTimeout = doc["screenSaverTimeout"] | screenSaverTimeout;
     autoPageChange = doc["autoPageChange"] | autoPageChange;
+    invertColors = doc["invertColors"] | invertColors;
+    swapRedBlue = doc["swapRedBlue"] | swapRedBlue;
 
     Serial.println();
     Serial.println("-----------------------------------------------------------------");
@@ -1121,6 +1163,8 @@ void saveSettings()
     doc["startupLogo"] = startupLogo;
     doc["italicClockFonts"] = italicClockFonts;
     doc["autoPageChange"] = autoPageChange;
+    doc["invertColors"] = invertColors;
+    doc["swapRedBlue"] = swapRedBlue;
 
     fs::File file = SPIFFS.open("/settings.json", "w");
 
